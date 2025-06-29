@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine AS development
+FROM golang:1.23-alpine AS development
 
 # Install air for hot reloading
 RUN go install github.com/cosmtrek/air@latest
@@ -18,7 +18,7 @@ EXPOSE 8080
 CMD ["air", "-c", ".air.toml"]
 
 # Production stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 COPY go.mod go.sum ./
