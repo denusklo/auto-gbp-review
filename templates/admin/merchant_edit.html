@@ -1,0 +1,215 @@
+{{define "title"}}Edit Merchant{{end}}
+
+{{define "content"}}
+<div class="min-h-screen bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <a href="/admin/merchants" class="text-sm text-gray-500 hover:text-gray-700">← Back to Merchants</a>
+                    <h1 class="text-xl font-semibold text-gray-900">Edit Merchant</h1>
+                </div>
+                <div class="flex items-center">
+                    <form action="/logout" method="POST" class="inline">
+                        <button type="submit" class="text-sm text-red-600 hover:text-red-800">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <form action="/admin/merchants/{{.merchant.ID}}/update" method="POST">
+                <!-- Removed the _method hidden field since we're using POST directly -->
+                
+                <div class="space-y-6">
+                    <!-- Basic Information -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">Basic Information</h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            {{if .error}}
+                            <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                                <div class="text-sm text-red-700">{{.error}}</div>
+                            </div>
+                            {{end}}
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="business_name" class="block text-sm font-medium text-gray-700">Business Name</label>
+                                    <input type="text" name="business_name" id="business_name" required 
+                                           value="{{.merchant.BusinessName}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="slug" class="block text-sm font-medium text-gray-700">Slug</label>
+                                    <input type="text" name="slug" id="slug" required 
+                                           value="{{.merchant.Slug}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                           pattern="[a-z0-9-]+" title="Only lowercase letters, numbers, and hyphens allowed">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="is_active" value="true" {{if .merchant.IsActive}}checked{{end}}
+                                           class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                    <span class="ml-2 text-sm text-gray-900">Active</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">Contact Information</h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div>
+                                <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                                <textarea name="address" id="address" rows="3"
+                                          class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{.details.Address}}</textarea>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="phone_number" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                                    <input type="tel" name="phone_number" id="phone_number"
+                                           value="{{.details.PhoneNumber}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="theme_color" class="block text-sm font-medium text-gray-700">Theme Color</label>
+                                    <input type="color" name="theme_color" id="theme_color"
+                                           value="{{.details.ThemeColor}}"
+                                           class="mt-1 block w-full h-10 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="whatsapp_preset_text" class="block text-sm font-medium text-gray-700">WhatsApp Preset Text</label>
+                                <textarea name="whatsapp_preset_text" id="whatsapp_preset_text" rows="2"
+                                          class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{.details.WhatsAppPresetText}}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Social Media & URLs -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">Social Media & URLs</h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="website_url" class="block text-sm font-medium text-gray-700">Website URL</label>
+                                    <input type="url" name="website_url" id="website_url"
+                                           value="{{.details.WebsiteURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="facebook_url" class="block text-sm font-medium text-gray-700">Facebook URL</label>
+                                    <input type="url" name="facebook_url" id="facebook_url"
+                                           value="{{.details.FacebookURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="instagram_url" class="block text-sm font-medium text-gray-700">Instagram URL</label>
+                                    <input type="url" name="instagram_url" id="instagram_url"
+                                           value="{{.details.InstagramURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="tiktok_url" class="block text-sm font-medium text-gray-700">TikTok URL</label>
+                                    <input type="url" name="tiktok_url" id="tiktok_url"
+                                           value="{{.details.TiktokURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="threads_url" class="block text-sm font-medium text-gray-700">Threads URL</label>
+                                    <input type="url" name="threads_url" id="threads_url"
+                                           value="{{.details.ThreadsURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="xiaohongshu_id" class="block text-sm font-medium text-gray-700">Xiaohongshu ID</label>
+                                    <input type="text" name="xiaohongshu_id" id="xiaohongshu_id"
+                                           value="{{.details.XiaohongshuID}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- App & Maps URLs -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">App Store & Maps</h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="google_play_url" class="block text-sm font-medium text-gray-700">Google Play URL</label>
+                                    <input type="url" name="google_play_url" id="google_play_url"
+                                           value="{{.details.GooglePlayURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="app_store_url" class="block text-sm font-medium text-gray-700">App Store URL</label>
+                                    <input type="url" name="app_store_url" id="app_store_url"
+                                           value="{{.details.AppStoreURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="google_maps_url" class="block text-sm font-medium text-gray-700">Google Maps URL</label>
+                                    <input type="url" name="google_maps_url" id="google_maps_url"
+                                           value="{{.details.GoogleMapsURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="waze_url" class="block text-sm font-medium text-gray-700">Waze URL</label>
+                                    <input type="url" name="waze_url" id="waze_url"
+                                           value="{{.details.WazeURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label for="logo_url" class="block text-sm font-medium text-gray-700">Logo URL</label>
+                                    <input type="url" name="logo_url" id="logo_url"
+                                           value="{{.details.LogoURL}}"
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="flex justify-end space-x-3">
+                        <a href="/admin/merchants" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </a>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium">
+                            Update Merchant
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{{end}}

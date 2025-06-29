@@ -1,0 +1,315 @@
+<!-- templates/merchant_profile.html -->
+{{define "title"}}Profile{{end}}
+
+{{define "content"}}
+<div class="min-h-screen bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <a href="/dashboard" class="text-sm text-gray-500 hover:text-gray-700">← Dashboard</a>
+                    <h1 class="text-xl font-semibold text-gray-900">Business Profile</h1>
+                </div>
+                <div class="flex items-center">
+                    <form action="/logout" method="POST" class="inline">
+                        <button type="submit" class="text-sm text-red-600 hover:text-red-800">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            {{if .message}}
+            <div class="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
+                <div class="text-sm text-green-700">{{.message}}</div>
+            </div>
+            {{end}}
+
+            {{if .error}}
+            <div class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+                <div class="text-sm text-red-700">{{.error}}</div>
+            </div>
+            {{end}}
+
+            <form action="/dashboard/profile" method="POST" enctype="multipart/form-data">
+                <!-- Removed the _method hidden field since we're using POST directly -->
+
+                <div class="space-y-6">
+                    <!-- Basic Information -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">Basic Information</h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="business_name" class="block text-sm font-medium text-gray-700">Business
+                                        Name *</label>
+                                    <input type="text" name="business_name" id="business_name" required
+                                        value="{{if .merchant}}{{.merchant.BusinessName}}{{end}}"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="slug" class="block text-sm font-medium text-gray-700">URL Slug *</label>
+                                    <input type="text" name="slug" id="slug" required
+                                        value="{{if .merchant}}{{.merchant.Slug}}{{end}}"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        pattern="[a-z0-9-]+"
+                                        title="Only lowercase letters, numbers, and hyphens allowed">
+                                    <p class="mt-1 text-xs text-gray-500">This will be your business URL:
+                                        yourdomain.com/?bn=your-slug</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">Contact Information</h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div>
+                                <label for="address" class="block text-sm font-medium text-gray-700">Business
+                                    Address</label>
+                                <textarea name="address" id="address" rows="3"
+                                    placeholder="Enter your full business address"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{if .details}}{{.details.Address}}{{end}}</textarea>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="phone_number" class="block text-sm font-medium text-gray-700">Phone
+                                        Number</label>
+                                    <input type="tel" name="phone_number" id="phone_number"
+                                        value="{{if .details}}{{.details.PhoneNumber}}{{end}}"
+                                        placeholder="+60123456789"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="theme_color" class="block text-sm font-medium text-gray-700">Theme
+                                        Color</label>
+                                    <input type="color" name="theme_color" id="theme_color"
+                                        value="{{if .details}}{{.details.ThemeColor}}{{else}}#3B82F6{{end}}"
+                                        class="mt-1 block w-full h-10 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="whatsapp_preset_text"
+                                    class="block text-sm font-medium text-gray-700">WhatsApp Preset Message</label>
+                                <textarea name="whatsapp_preset_text" id="whatsapp_preset_text" rows="2"
+                                    placeholder="Hi! I'm interested in your services..."
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{if .details}}{{.details.WhatsAppPresetText}}{{else}}I'm interested in your services{{end}}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Social Media -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">Social Media & Online Presence</h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="website_url" class="block text-sm font-medium text-gray-700">Website
+                                        URL</label>
+                                    <input type="url" name="website_url" id="website_url"
+                                        value="{{if .details}}{{.details.WebsiteURL}}{{end}}"
+                                        placeholder="https://your-website.com"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="facebook_url" class="block text-sm font-medium text-gray-700">Facebook
+                                        Page URL</label>
+                                    <input type="url" name="facebook_url" id="facebook_url"
+                                        value="{{if .details}}{{.details.FacebookURL}}{{end}}"
+                                        placeholder="https://facebook.com/your-page"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="instagram_url" class="block text-sm font-medium text-gray-700">Instagram
+                                        URL</label>
+                                    <input type="url" name="instagram_url" id="instagram_url"
+                                        value="{{if .details}}{{.details.InstagramURL}}{{end}}"
+                                        placeholder="https://instagram.com/your-account"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="tiktok_url" class="block text-sm font-medium text-gray-700">TikTok
+                                        URL</label>
+                                    <input type="url" name="tiktok_url" id="tiktok_url"
+                                        value="{{if .details}}{{.details.TiktokURL}}{{end}}"
+                                        placeholder="https://tiktok.com/@your-account"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="threads_url" class="block text-sm font-medium text-gray-700">Threads
+                                        URL</label>
+                                    <input type="url" name="threads_url" id="threads_url"
+                                        value="{{if .details}}{{.details.ThreadsURL}}{{end}}"
+                                        placeholder="https://threads.net/@your-account"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="xiaohongshu_id"
+                                        class="block text-sm font-medium text-gray-700">Xiaohongshu ID</label>
+                                    <input type="text" name="xiaohongshu_id" id="xiaohongshu_id"
+                                        value="{{if .details}}{{.details.XiaohongshuID}}{{end}}"
+                                        placeholder="your-xiaohongshu-id"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Apps & Maps -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">Apps & Maps</h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="google_play_url" class="block text-sm font-medium text-gray-700">Google
+                                        Play Store URL</label>
+                                    <input type="url" name="google_play_url" id="google_play_url"
+                                        value="{{if .details}}{{.details.GooglePlayURL}}{{end}}"
+                                        placeholder="https://play.google.com/store/apps/details?id=..."
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="app_store_url" class="block text-sm font-medium text-gray-700">App Store
+                                        URL</label>
+                                    <input type="url" name="app_store_url" id="app_store_url"
+                                        value="{{if .details}}{{.details.AppStoreURL}}{{end}}"
+                                        placeholder="https://apps.apple.com/app/..."
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="google_maps_url" class="block text-sm font-medium text-gray-700">Google
+                                        Maps URL</label>
+                                    <input type="url" name="google_maps_url" id="google_maps_url"
+                                        value="{{if .details}}{{.details.GoogleMapsURL}}{{end}}"
+                                        placeholder="https://maps.google.com/..."
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label for="waze_url" class="block text-sm font-medium text-gray-700">Waze
+                                        URL</label>
+                                    <input type="url" name="waze_url" id="waze_url"
+                                        value="{{if .details}}{{.details.WazeURL}}{{end}}"
+                                        placeholder="https://waze.com/ul/..."
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+
+                                <!-- 2. Replace the existing logo_url section with this: -->
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Business Logo</label>
+                                    <!-- Current Logo Display -->
+                                    {{if and .details .details.LogoURL}}
+                                    <div class="mb-4 flex items-center space-x-4">
+                                        <img src="{{.details.LogoURL}}" alt="Current Logo"
+                                            class="h-20 w-20 object-cover rounded-lg border border-gray-200 shadow-sm">
+                                        <div>
+                                            <p class="text-sm text-gray-600">Current logo</p>
+                                            <p class="text-xs text-gray-400">Upload a new file to replace</p>
+                                        </div>
+                                    </div>
+                                    {{end}}
+
+                                    <!-- Upload Options -->
+                                    <div class="space-y-4">
+                                        <!-- File Upload -->
+                                        <div>
+                                            <label for="logo_file"
+                                                class="block text-sm font-medium text-gray-600 mb-1">Upload New
+                                                Logo</label>
+                                            <input type="file" name="logo_file" id="logo_file" accept="image/*" class="block w-full text-sm text-gray-500 
+                          file:mr-4 file:py-2 file:px-4 
+                          file:rounded-full file:border-0 
+                          file:text-sm file:font-semibold 
+                          file:bg-indigo-50 file:text-indigo-700 
+                          hover:file:bg-indigo-100
+                          border border-gray-300 rounded-md">
+                                            <p class="mt-1 text-xs text-gray-500">PNG, JPG, GIF, WEBP up to 5MB.
+                                                Recommended: 200x200px or larger.</p>
+                                        </div>
+
+                                        <!-- OR Divider -->
+                                        <div class="relative">
+                                            <div class="absolute inset-0 flex items-center">
+                                                <div class="w-full border-t border-gray-300"></div>
+                                            </div>
+                                            <div class="relative flex justify-center text-sm">
+                                                <span class="px-2 bg-white text-gray-500">or</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- URL Input -->
+                                        <div>
+                                            <label for="logo_url"
+                                                class="block text-sm font-medium text-gray-600 mb-1">Logo URL</label>
+                                            <input type="url" name="logo_url" id="logo_url"
+                                                value="{{if .details}}{{.details.LogoURL}}{{end}}"
+                                                placeholder="https://example.com/logo.png"
+                                                class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                            <p class="mt-1 text-xs text-gray-500">Paste a direct link to your logo image
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="flex justify-end space-x-3">
+                        <a href="/dashboard"
+                            class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </a>
+                        <button type="submit"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium">
+                            Save Profile
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-generate slug from business name
+    document.getElementById('business_name').addEventListener('input', function (e) {
+        const businessName = e.target.value;
+        const slugField = document.getElementById('slug');
+
+        // Only auto-generate if slug field is empty
+        if (!slugField.value) {
+            const slug = businessName.toLowerCase()
+                .replace(/[^a-z0-9 ]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '');
+            slugField.value = slug;
+        }
+    });
+</script>
+{{end}}

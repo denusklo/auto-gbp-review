@@ -1,0 +1,114 @@
+{{define "title"}}Home Page{{end}}
+
+{{define "content"}}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold text-gray-900">Auto GBP Review</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/login" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                        Login
+                    </a>
+                    <a href="/register" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                        Get Started
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
+                Boost Your Google Reviews
+            </h1>
+            <p class="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
+                Create professional review collection pages for your business. 
+                Make it easy for customers to leave reviews on Google and connect with you on social media.
+            </p>
+            <div class="mt-10 flex items-center justify-center gap-x-6">
+                <a href="/register" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold shadow-lg transition-colors">
+                    Create Your Page
+                </a>
+                <a href="#demo" class="text-gray-900 hover:text-gray-700 text-lg font-semibold">
+                    See Demo <span aria-hidden="true">→</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="mt-20">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-star text-blue-600 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Easy Review Collection</h3>
+                    <p class="text-gray-600">Direct links to Google Reviews with pre-filled business information</p>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                        <i class="fab fa-whatsapp text-green-600 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">WhatsApp Integration</h3>
+                    <p class="text-gray-600">Instant customer communication with preset messages</p>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-share-alt text-purple-600 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Social Media Hub</h3>
+                    <p class="text-gray-600">All your social platforms in one convenient location</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demo Section -->
+        <div id="demo" class="mt-20 bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="px-6 py-8">
+                <h2 class="text-2xl font-bold text-gray-900 text-center mb-8">Try Demo</h2>
+                <div class="max-w-md mx-auto">
+                    <div class="flex">
+                        <input type="text" 
+                               placeholder="Enter business name..." 
+                               class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               id="demo-input">
+                        <button onclick="viewDemo()" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-r-lg font-medium">
+                            View Page
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2 text-center">
+                        Try: <span class="text-blue-600 cursor-pointer" onclick="document.getElementById('demo-input').value='demo-restaurant'">demo-restaurant</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewDemo() {
+    const businessName = document.getElementById('demo-input').value.trim();
+    if (businessName) {
+        window.open(`/?id=${encodeURIComponent(businessName)}`, '_blank');
+    } else {
+        alert('Please enter a business name');
+    }
+}
+
+// Allow Enter key to trigger demo
+document.getElementById('demo-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        viewDemo();
+    }
+});
+</script>
+{{end}}

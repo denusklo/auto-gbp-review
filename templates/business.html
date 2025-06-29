@@ -1,0 +1,480 @@
+{{define "title"}}{{.merchant.BusinessName}}{{end}}
+
+{{define "content"}}
+
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <!-- Business Header -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="max-w-4xl mx-auto px-4 py-6">
+            <div class="flex items-center space-x-4">
+                {{if .details.LogoURL}}
+                <img src="{{.details.LogoURL}}" alt="{{.merchant.BusinessName}}"
+                    class="w-16 h-16 rounded-lg object-cover">
+                {{else}}
+                <div
+                    class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <span class="text-white text-2xl font-bold">{{index .merchant.BusinessName 0}}</span>
+                </div>
+                {{end}}
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">{{.merchant.BusinessName}}</h1>
+                    {{if .details.Address}}
+                    <p class="text-gray-600 mt-1">{{.details.Address}}</p>
+                    {{end}}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Review Cards Section -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Connect With Us</h2>
+            <p class="text-gray-600 mb-6">Discover our social media, apps, and find directions to our location!</p>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <!-- Google Reviews Card -->
+                <div class="review-card bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
+                    onclick="showReviews('google')" data-platform="google">
+                    <div class="p-6 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-red-100 rounded-full flex items-center justify-center">
+                            <i class="fab fa-google text-red-600 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm">Google</h3>
+                        <p class="text-xs text-gray-500 mt-1">Reviews</p>
+                    </div>
+                </div>
+
+                <!-- Facebook Reviews Card -->
+                <div class="review-card bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
+                    onclick="showReviews('facebook')" data-platform="facebook">
+                    <div class="p-6 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fab fa-facebook text-blue-600 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm">Facebook</h3>
+                        <p class="text-xs text-gray-500 mt-1">Reviews</p>
+                    </div>
+                </div>
+
+                <!-- Website Card -->
+                <div class="review-card {{if not .details.WebsiteURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.WebsiteURL}}onclick="openLink('website')" {{end}} data-platform="website">
+                    <div class="p-6 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-purple-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-globe text-purple-600 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm">Website</h3>
+                        <p class="text-xs text-gray-500 mt-1">Know More</p>
+                    </div>
+                </div>
+
+                <!-- Instagram Card -->
+                <div class="review-card {{if not .details.InstagramURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.InstagramURL}}onclick="openLink('instagram')" {{end}} data-platform="instagram">
+                    <div class="p-6 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-pink-100 rounded-full flex items-center justify-center">
+                            <i class="fab fa-instagram text-pink-600 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm">Instagram</h3>
+                        <p class="text-xs text-gray-500 mt-1">Follow Us</p>
+                    </div>
+                </div>
+
+                <!-- TikTok Card -->
+                <div class="review-card {{if not .details.TiktokURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.TiktokURL}}onclick="openLink('tiktok')" {{end}} data-platform="tiktok">
+                    <div class="p-6 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+                            <i class="fab fa-tiktok text-gray-900 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm">TikTok</h3>
+                        <p class="text-xs text-gray-500 mt-1">Follow Us</p>
+                    </div>
+                </div>
+
+                <!-- Google Play Card -->
+                <div class="review-card {{if not .details.GooglePlayURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.GooglePlayURL}}onclick="openLink('googleplay')" {{end}} data-platform="googleplay">
+                    <div class="p-6 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-green-100 rounded-full flex items-center justify-center">
+                            <i class="fab fa-google-play text-green-600 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm">Google Play</h3>
+                        <p class="text-xs text-gray-500 mt-1">Download App</p>
+                    </div>
+                </div>
+
+                <!-- App Store Card -->
+                <div class="review-card {{if not .details.AppStoreURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.AppStoreURL}}onclick="openLink('appstore')" {{end}} data-platform="appstore">
+                    <div class="p-6 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fab fa-apple text-blue-600 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm">App Store</h3>
+                        <p class="text-xs text-gray-500 mt-1">Download App</p>
+                    </div>
+                </div>
+
+                <!-- Google Maps Card -->
+                <div class="review-card bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
+                    data-platform="googlemaps">
+                    <div class="p-4 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-red-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-map-marker-alt text-red-600 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm mb-3">Google Maps</h3>
+                        {{if .details.Address}}
+                        <div class="d-grid gap-1">
+                            <button onclick="openGoogleMapsDirections()" class="btn btn-outline-danger btn-sm">
+                                <i class="fas fa-route me-1"></i>Directions
+                            </button>
+                            <button onclick="openGoogleMapsSearch()" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-search me-1"></i>Search
+                            </button>
+                        </div>
+                        {{else}}
+                        <p class="text-xs text-gray-500 mt-1">No Address</p>
+                        {{end}}
+                    </div>
+                </div>
+
+                <!-- Waze Direction Card -->
+                <div class="review-card {{if not .details.Address}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.Address}}onclick="openLink('waze')" {{end}} data-platform="waze">
+                    <div class="p-6 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-cyan-100 rounded-full flex items-center justify-center">
+                            <i class="fab fa-waze text-cyan-600 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm">Waze</h3>
+                        <p class="text-xs text-gray-500 mt-1">Directions</p>
+                    </div>
+                </div>
+
+                <!-- Xiao Hong Shu Card -->
+                <div class="review-card {{if not .details.XiaohongshuID}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.XiaohongshuID}}onclick="openLink('xiaohongshu')" {{end}} data-platform="xiaohongshu">
+                    <div class="p-6 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-red-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-book text-red-600 text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 text-sm">小红书</h3>
+                        <p class="text-xs text-gray-500 mt-1">Follow Us</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Section -->
+        {{if .details.PhoneNumber}}
+        <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+            <h3 class="text-xl font-semibold text-gray-900 mb-4">Contact Us</h3>
+            <div class="flex flex-col gap-3">
+                <!-- Phone Call -->
+                <a href="tel:{{.cleanPhone}}"
+                    class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg text-center font-medium transition-colors">
+                    <i class="fas fa-phone me-2"></i>Call Now
+                </a>
+
+                <!-- WhatsApp Options -->
+                {{if .whatsappWebLink}}
+                <div class="row g-2">
+                    <div class="col-6">
+                        <a href="{{.whatsappWebLink}}" target="_blank" class="btn btn-success w-100">
+                            <i class="fab fa-whatsapp me-2"></i>WhatsApp Web
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{.whatsappAppLink}}" target="_blank" class="btn btn-outline-success w-100">
+                            <i class="fas fa-mobile-alt me-2"></i>WhatsApp App
+                        </a>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<!-- Bootstrap Modal for Reviews -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="reviewsList" class="mb-4">
+                    <!-- Reviews will be populated here -->
+                </div>
+                <div class="d-grid">
+                    <button id="writeReviewBtn" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>Write a Review
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // Initialize Bootstrap modal
+    const reviewModal = new bootstrap.Modal(document.getElementById('reviewModal'));
+
+    // Hardcoded reviews data
+    const reviewsData = {
+        google: [
+            { id: 1, author: "John Doe", text: "Excellent service! Highly recommended.", rating: 5 },
+            { id: 2, author: "Jane Smith", text: "Great experience, will come back again.", rating: 5 },
+            { id: 3, author: "Mike Johnson", text: "Professional and friendly staff.", rating: 4 },
+            { id: 4, author: "Sarah Wilson", text: "Outstanding quality and value.", rating: 5 }
+        ],
+        facebook: [
+            { id: 5, author: "Bob Wilson", text: "Outstanding quality and friendly staff.", rating: 4 },
+            { id: 6, author: "Alice Brown", text: "Very satisfied with the service provided.", rating: 5 },
+            { id: 7, author: "Tom Davis", text: "Highly professional team, great results!", rating: 5 },
+            { id: 8, author: "Lisa Garcia", text: "Exceeded my expectations in every way.", rating: 5 }
+        ]
+    };
+
+    const businessDetails = {
+        address: "{{.details.Address}}",
+        facebook_url: "{{.details.FacebookURL}}",
+        instagram_url: "{{.details.InstagramURL}}",
+        tiktok_url: "{{.details.TiktokURL}}",
+        google_maps_url: "{{.details.GoogleMapsURL}}",
+        website_url: "{{.details.WebsiteURL}}",
+        googleplay_url: "{{.details.GooglePlayURL}}",
+        appstore_url: "{{.details.AppStoreURL}}",
+        xiaohongshu_url: "{{.details.XiaohongshuID}}"
+    };
+
+    function showReviews(platform) {
+        const modalTitle = document.getElementById('modalTitle');
+        const reviewsList = document.getElementById('reviewsList');
+        const writeReviewBtn = document.getElementById('writeReviewBtn');
+
+        modalTitle.textContent = platform.charAt(0).toUpperCase() + platform.slice(1) + ' Reviews';
+
+        // Clear previous reviews
+        reviewsList.innerHTML = '';
+
+        // Populate reviews
+        const reviews = reviewsData[platform] || [];
+        reviews.forEach(review => {
+            const reviewElement = createReviewElement(review, platform);
+            reviewsList.appendChild(reviewElement);
+        });
+
+        // Set up write review button
+        writeReviewBtn.onclick = () => writeReview(platform);
+
+        // Show modal
+        reviewModal.show();
+    }
+
+    function createReviewElement(review, platform) {
+        const div = document.createElement('div');
+        div.className = 'card mb-3';
+
+        const stars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
+
+        div.innerHTML = `
+        <div class="input-group">
+            <input type="text" class="form-control" value="${review.text}" readonly onclick="copyAndRedirect('${review.text}', '${platform}')">
+            <button class="btn btn-outline-secondary" type="button" onclick="copyReviewText('${review.text}')">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>
+    `;
+
+        return div;
+    }
+
+    function copyAndRedirect(reviewText, platform) {
+        // Copy the review text to clipboard
+        navigator.clipboard.writeText(reviewText).then(() => {
+            console.log('Review text copied to clipboard');
+
+            // Show a toast or brief notification
+            showToast(`Review text copied! Redirecting to ${platform.charAt(0).toUpperCase() + platform.slice(1)}...`);
+
+            // Redirect to the appropriate platform after a brief delay
+            setTimeout(() => {
+                const businessName = "{{.merchant.BusinessName}}";
+                const address = businessDetails.address;
+                let url = '';
+
+                switch (platform) {
+                    case 'google':
+                        const googlePlaceID = "{{.googlePlaceID}}";
+                        if (googlePlaceID && googlePlaceID !== "") {
+                            url = `https://search.google.com/local/writereview?placeid=${googlePlaceID}`;
+                        } else {
+                            if (address) {
+                                url = `https://www.google.com/maps/search/${encodeURIComponent(address)}`;
+                            } else {
+                                url = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
+                            }
+                        }
+                        break;
+                    case 'facebook':
+                        if (businessDetails.facebook_url) {
+                            url = businessDetails.facebook_url;
+                        } else {
+                            url = `https://www.facebook.com/search/top?q=${encodeURIComponent(businessName)}`;
+                        }
+                        break;
+                    default:
+                        // Fallback to Google if platform not recognized
+                        url = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
+                }
+
+                if (url) {
+                    window.open(url, '_blank');
+                }
+            }, 1000);
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            showToast('Failed to copy text');
+        });
+    }
+
+    function copyReviewText(reviewText) {
+        navigator.clipboard.writeText(reviewText).then(() => {
+            showToast('Review text copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            showToast('Failed to copy text');
+        });
+    }
+
+    function showToast(message) {
+        // Create a simple toast notification
+        const toast = document.createElement('div');
+        toast.className = 'position-fixed top-0 start-50 translate-middle-x mt-3 alert alert-success alert-dismissible fade show';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 3000);
+    }
+
+    function openGoogleMapsDirections() {
+        const address = businessDetails.address;
+        if (address) {
+            const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+            window.open(url, '_blank');
+        }
+    }
+
+    function openGoogleMapsSearch() {
+        const businessName = "{{.merchant.BusinessName}}";
+        const address = businessDetails.address;
+        let searchQuery = businessName;
+        if (address) {
+            searchQuery += ' ' + address;
+        }
+        const url = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
+        window.open(url, '_blank');
+    }
+
+    function writeReview(platform) {
+        let url = '';
+        const businessName = "{{.merchant.BusinessName}}";
+        const address = businessDetails.address;
+
+        switch (platform) {
+            case 'google':
+                const googlePlaceID = "{{.googlePlaceID}}";
+                if (googlePlaceID && googlePlaceID !== "") {
+                    url = `https://search.google.com/local/writereview?placeid=${googlePlaceID}`;
+                } else {
+                    if (address) {
+                        url = `https://www.google.com/maps/search/${encodeURIComponent(address)}`;
+                    } else {
+                        url = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
+                    }
+                }
+                break;
+            case 'facebook':
+                if (businessDetails.facebook_url) {
+                    url = businessDetails.facebook_url;
+                } else {
+                    url = `https://www.facebook.com/search/top?q=${encodeURIComponent(businessName)}`;
+                }
+                break;
+        }
+
+        if (url) {
+            window.open(url, '_blank');
+        }
+        reviewModal.hide();
+    }
+
+    function openLink(platform) {
+        let url = '';
+        const businessName = "{{.merchant.BusinessName}}";
+        const address = businessDetails.address;
+
+        switch (platform) {
+            case 'website':
+                url = businessDetails.website_url;
+                break;
+            case 'instagram':
+                url = businessDetails.instagram_url;
+                break;
+            case 'tiktok':
+                url = businessDetails.tiktok_url;
+                break;
+            case 'googleplay':
+                url = businessDetails.googleplay_url;
+                break;
+            case 'appstore':
+                url = businessDetails.appstore_url;
+                break;
+            case 'googlemaps':
+                // This case is now handled by separate functions
+                break;
+            case 'waze':
+                if (address) {
+                    url = `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
+                }
+                break;
+            case 'xiaohongshu':
+                url = businessDetails.xiaohongshu_url;
+                break;
+        }
+
+        if (url) {
+            window.open(url, '_blank');
+        }
+    }
+</script>
+
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .review-card:hover {
+        transform: translateY(-2px);
+    }
+</style>
+{{end}}

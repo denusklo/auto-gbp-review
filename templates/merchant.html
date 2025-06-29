@@ -1,0 +1,186 @@
+{{define "merchant-content"}}
+<div class="min-h-screen bg-gray-50">
+    <!-- Business Header -->
+    <div class="bg-white shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-8">
+            <div class="text-center">
+                {{if .details.LogoURL}}
+                <img src="{{.details.LogoURL}}" alt="{{.merchant.BusinessName}}" class="w-24 h-24 mx-auto rounded-full shadow-lg mb-4">
+                {{else}}
+                <div class="w-24 h-24 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full shadow-lg mb-4 flex items-center justify-center">
+                    <span class="text-white text-2xl font-bold">{{slice .merchant.BusinessName 0 1}}</span>
+                </div>
+                {{end}}
+                
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">{{.merchant.BusinessName}}</h1>
+                
+                {{if .details.Address}}
+                <p class="text-gray-600 mb-4">
+                    <i class="fas fa-map-marker-alt mr-2"></i>
+                    {{.details.Address}}
+                </p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <!-- Review Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4 text-center">
+                <i class="fas fa-star text-yellow-500 mr-2"></i>
+                Share Your Experience
+            </h2>
+            
+            {{if .google_review_link}}
+            <div class="text-center">
+                <a href="{{.google_review_link}}" 
+                   target="_blank"
+                   class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium text-lg shadow-lg transition-colors">
+                    <i class="fab fa-google mr-2"></i>
+                    Review on Google
+                </a>
+                <p class="text-sm text-gray-500 mt-2">Your feedback helps us improve!</p>
+            </div>
+            {{else}}
+            <p class="text-gray-500 text-center">Review link not available</p>
+            {{end}}
+        </div>
+
+        <!-- Contact Section -->
+        {{if .whatsapp_link}}
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4 text-center">
+                <i class="fas fa-comments text-green-500 mr-2"></i>
+                Get in Touch
+            </h2>
+            
+            <div class="text-center">
+                <a href="{{.whatsapp_link}}" 
+                   target="_blank"
+                   class="inline-flex items-center bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium text-lg shadow-lg transition-colors">
+                    <i class="fab fa-whatsapp mr-2"></i>
+                    Chat on WhatsApp
+                </a>
+                <p class="text-sm text-gray-500 mt-2">Quick response guaranteed!</p>
+            </div>
+        </div>
+        {{end}}
+
+        <!-- Social Media Links -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-6 text-center">
+                <i class="fas fa-share-alt text-purple-500 mr-2"></i>
+                Follow Us
+            </h2>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {{if .details.FacebookURL}}
+                <a href="{{.details.FacebookURL}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                    <i class="fab fa-facebook text-blue-600 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">Facebook</span>
+                </a>
+                {{end}}
+
+                {{if .details.InstagramURL}}
+                <a href="{{.details.InstagramURL}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors">
+                    <i class="fab fa-instagram text-pink-600 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">Instagram</span>
+                </a>
+                {{end}}
+
+                {{if .details.TiktokURL}}
+                <a href="{{.details.TiktokURL}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                    <i class="fab fa-tiktok text-gray-800 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">TikTok</span>
+                </a>
+                {{end}}
+
+                {{if .details.XiaohongshuID}}
+                <a href="https://www.xiaohongshu.com/user/profile/{{.details.XiaohongshuID}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                    <i class="fas fa-book text-red-600 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">小红书</span>
+                </a>
+                {{end}}
+
+                {{if .details.ThreadsURL}}
+                <a href="{{.details.ThreadsURL}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                    <i class="fab fa-threads text-gray-800 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">Threads</span>
+                </a>
+                {{end}}
+
+                {{if .details.WebsiteURL}}
+                <a href="{{.details.WebsiteURL}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                    <i class="fas fa-globe text-blue-600 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">Website</span>
+                </a>
+                {{end}}
+
+                {{if .details.GooglePlayURL}}
+                <a href="{{.details.GooglePlayURL}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                    <i class="fab fa-google-play text-green-600 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">Google Play</span>
+                </a>
+                {{end}}
+
+                {{if .details.AppStoreURL}}
+                <a href="{{.details.AppStoreURL}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                    <i class="fab fa-app-store text-gray-800 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">App Store</span>
+                </a>
+                {{end}}
+
+                {{if .details.GoogleMapsURL}}
+                <a href="{{.details.GoogleMapsURL}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                    <i class="fas fa-map text-red-600 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">Google Maps</span>
+                </a>
+                {{end}}
+
+                {{if .details.WazeURL}}
+                <a href="{{.details.WazeURL}}" 
+                   target="_blank"
+                   class="flex flex-col items-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                    <i class="fas fa-route text-blue-600 text-2xl mb-2"></i>
+                    <span class="text-sm font-medium text-gray-700">Waze</span>
+                </a>
+                {{end}}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-500">
+            <p class="text-sm">
+                Powered by <a href="/" class="text-blue-600 hover:text-blue-700">Auto GBP Review</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Custom styling based on theme color */
+:root {
+    --theme-color: {{.details.ThemeColor}};
+}
+</style>
+{{end}}
