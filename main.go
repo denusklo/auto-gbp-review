@@ -44,6 +44,11 @@ func main() {
 		log.Println("No .env file found, using environment variables")
 	}
 
+	// Initialize Supabase client
+	if err := InitSupabase(); err != nil {
+		log.Fatal("Failed to initialize Supabase client:", err)
+	}
+
 	// Initialize database connection
 	db, err := InitDatabase()
 	if err != nil {
@@ -82,15 +87,21 @@ func InitRoutes(router *gin.Engine, db *Database) {
 	router.GET("/merchant", handlers.MerchantPage) // ?bn=businessname
 
 	// Auth routes (redirect if already logged in)
-	router.GET("/login", RedirectIfAuthenticated(), handlers.LoginPage)
-	router.POST("/login", handlers.Login)
-	router.GET("/register", RedirectIfAuthenticated(), handlers.RegisterPage)
-	router.POST("/register", handlers.Register)
-	router.POST("/logout", handlers.Logout)
+	router.GET("/login", SupabaseRedirectIfAuthenticated(), handlers.LoginPage)
+	router.POST("/login", SupabaseLogin)
+	router.GET("/register", SupabaseRedirectIfAuthenticated(), handlers.RegisterPage)
+	router.POST("/register", SupabaseRegister)
+	router.POST("/logout", SupabaseLogout)
+	
+	// Password reset routes (Supabase Auth only)
+	router.GET("/forgot-password", SupabaseRedirectIfAuthenticated(), ForgotPasswordPage)
+	router.POST("/forgot-password", ForgotPassword)
+	router.GET("/reset-password", ResetPasswordPage)
+	router.POST("/api/reset-password", ResetPassword)
 
 	// Admin routes (protected)
 	admin := router.Group("/admin")
-	admin.Use(AuthMiddleware("admin"))
+	admin.Use(SupabaseAuthMiddleware("admin"))
 	{
 		admin.GET("/", handlers.AdminDashboard)
 		admin.GET("/merchants", handlers.AdminMerchantsList)
@@ -103,7 +114,7 @@ func InitRoutes(router *gin.Engine, db *Database) {
 
 	// Merchant routes (protected)
 	merchant := router.Group("/dashboard")
-	merchant.Use(AuthMiddleware("merchant"))
+	merchant.Use(SupabaseAuthMiddleware("merchant"))
 	{
 		merchant.GET("/", handlers.MerchantDashboard)
 		merchant.GET("/profile", handlers.MerchantProfile)
