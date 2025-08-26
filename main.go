@@ -25,7 +25,7 @@ func renderPage(c *gin.Context, layout string, content string, data gin.H) {
 		data = gin.H{}
 	}
 	if _, exists := data["title"]; !exists {
-		data["title"] = "Auto GBP Review System"
+		data["title"] = "ViralEngine"
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
@@ -92,7 +92,7 @@ func InitRoutes(router *gin.Engine, db *Database) {
 	router.GET("/register", SupabaseRedirectIfAuthenticated(), handlers.RegisterPage)
 	router.POST("/register", SupabaseRegister)
 	router.POST("/logout", SupabaseLogout)
-	
+
 	// Password reset routes (Supabase Auth only)
 	router.GET("/forgot-password", SupabaseRedirectIfAuthenticated(), ForgotPasswordPage)
 	router.POST("/forgot-password", ForgotPassword)
