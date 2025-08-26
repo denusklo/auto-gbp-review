@@ -1,0 +1,170 @@
+/* Figtree Font Definitions */
+@font-face {
+  font-family: 'Figtree';
+  src: url('/static/fonts/Figtree/Figtree-VariableFont_wght.ttf') format('truetype');
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Figtree';
+  src: url('/static/fonts/Figtree/Figtree-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 300 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Static font fallbacks for older browsers */
+@font-face {
+  font-family: 'Figtree';
+  src: url('/static/fonts/Figtree/static/Figtree-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Figtree';
+  src: url('/static/fonts/Figtree/static/Figtree-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Figtree';
+  src: url('/static/fonts/Figtree/static/Figtree-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Figtree';
+  src: url('/static/fonts/Figtree/static/Figtree-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Lato Font Definitions */
+@font-face {
+  font-family: 'Lato';
+  src: url('/static/fonts/Lato/Lato-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lato';
+  src: url('/static/fonts/Lato/Lato-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lato';
+  src: url('/static/fonts/Lato/Lato-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lato';
+  src: url('/static/fonts/Lato/Lato-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Base body font */
+body {
+  font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Custom Background Colors */
+.bg-teal-custom {
+  background-color: rgba(119, 214, 211, 0.36);
+}
+
+.bg-blue-teal-custom {
+  background-color: #278BAE;
+}
+
+.bg-blue-teal-custom:hover {
+  background-color: #1f6b8a;
+}
+
+/* Custom Text Colors */
+.text-blue-custom {
+  color: #2487AB;
+}
+
+.text-navy-custom {
+  color: #023195;
+}
+
+.text-gray-custom {
+  color: #8C98B3;
+}
+
+.text-dark-custom {
+  color: #3D4C5E;
+}
+
+.text-blue-teal-custom {
+  color: #278BAE;
+}
+
+/* Custom SVG Fill Colors */
+.fill-blue-teal-custom {
+  fill: #278BAE;
+}
+
+.fill-white-custom {
+  fill: white;
+}
+
+/* Custom Button Styles */
+.btn-outline-blue-teal {
+  background-color: white;
+  border: 1px solid #278BAE;
+  color: #278BAE;
+}
+
+.btn-outline-blue-teal:hover {
+  background-color: #f8fafc;
+}
+
+/* Custom Border Radius */
+.rounded-custom-30 {
+  border-radius: 30px;
+}
+
+/* Custom Transitions */
+.transition-ease {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Ensure Figtree is used for headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Font utility classes */
+.font-lato {
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Custom Border Colors */
+.border-custom-gray-hero {
+  border-color: #ADADAD;
+}
+
+.border-custom-gray-footer {
+  border-color: #E5E7EB;
+}
