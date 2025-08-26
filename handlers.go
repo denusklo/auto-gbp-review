@@ -35,7 +35,7 @@ func (h *Handlers) Home(c *gin.Context) {
 
 	log.Println("Rendering home page")
 	renderPage(c, "templates/layouts/base.html", "templates/home.html", gin.H{
-		"title": "Auto GBP Review System",
+		"title": "ViralEngine",
 		"Year":  time.Now().Year(),
 	})
 	log.Println("Home page rendered")
