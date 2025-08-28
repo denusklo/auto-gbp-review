@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Handlers struct {
@@ -180,44 +179,10 @@ func (h *Handlers) LoginPage(c *gin.Context) {
 	})
 }
 
-func (h *Handlers) Login(c *gin.Context) {
-	email := c.PostForm("email")
-	password := c.PostForm("password")
-
-	user, err := h.getUserByEmail(email)
-	if err != nil {
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/login.html", gin.H{
-			"error": "Invalid credentials",
-		})
-		return
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/login.html", gin.H{
-			"error": "Invalid credentials",
-		})
-		return
-	}
-
-	// Generate JWT token
-	token, err := GenerateJWT(user.ID, user.Email, user.Role)
-	if err != nil {
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/login.html", gin.H{
-			"error": "Login failed",
-		})
-		return
-	}
-
-	// Set cookie
-	c.SetCookie("auth_token", token, 86400*7, "/", "", false, true) // 7 days
-
-	// Redirect based on role
-	if user.Role == "admin" {
-		c.Redirect(http.StatusFound, "/admin")
-	} else {
-		c.Redirect(http.StatusFound, "/dashboard")
-	}
-}
+// Old JWT-based login - DEPRECATED, use SupabaseLogin instead
+// func (h *Handlers) Login(c *gin.Context) {
+//   This function has been removed - now using Supabase Auth
+// }
 
 func (h *Handlers) RegisterPage(c *gin.Context) {
 	renderPage(c, "templates/layouts/auth.html", "templates/auth/register.html", gin.H{
@@ -225,50 +190,10 @@ func (h *Handlers) RegisterPage(c *gin.Context) {
 	})
 }
 
-func (h *Handlers) Register(c *gin.Context) {
-	email := c.PostForm("email")
-	password := c.PostForm("password")
-	confirmPassword := c.PostForm("confirm_password")
-
-	if password != confirmPassword {
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/register.html", gin.H{
-			"error": "Passwords do not match",
-		})
-		return
-	}
-
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/register.html", gin.H{
-			"error": "Registration failed",
-		})
-		return
-	}
-
-	// Create user
-	userID, err := h.createUser(email, string(hashedPassword), "merchant")
-	if err != nil {
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/register.html", gin.H{
-			"error": "Email already exists",
-		})
-		return
-	}
-
-	// Generate JWT token
-	token, err := GenerateJWT(userID, email, "merchant")
-	if err != nil {
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/register.html", gin.H{
-			"error": "Registration failed",
-		})
-		return
-	}
-
-	// Set cookie
-	c.SetCookie("auth_token", token, 86400*7, "/", "", false, true)
-
-	c.Redirect(http.StatusFound, "/dashboard")
-}
+// Old JWT-based register - DEPRECATED, use SupabaseRegister instead
+// func (h *Handlers) Register(c *gin.Context) {
+//   This function has been removed - now using Supabase Auth
+// }
 
 func (h *Handlers) Logout(c *gin.Context) {
 	c.SetCookie("auth_token", "", -1, "/", "", false, true)
@@ -445,8 +370,10 @@ func (h *Handlers) AdminDeleteMerchant(c *gin.Context) {
 
 // Merchant handlers
 func (h *Handlers) MerchantDashboard(c *gin.Context) {
-	userID := c.GetInt("user_id")
-	merchants, err := h.getMerchantsByUserID(userID)
+	userID := c.GetString("user_id")
+	log.Printf("Dashboard: Looking for merchants with auth_user_id: %s", userID)
+	merchants, err := h.getMerchantsByAuthUserID(userID)
+	log.Printf("Dashboard: Found %d merchants, error: %v", len(merchants), err)
 	if err != nil {
 		renderPage(c, "templates/layouts/base.html", "templates/error.html", gin.H{
 			"error": "Failed to load your businesses",
@@ -461,8 +388,8 @@ func (h *Handlers) MerchantDashboard(c *gin.Context) {
 }
 
 func (h *Handlers) MerchantProfile(c *gin.Context) {
-	userID := c.GetInt("user_id")
-	merchants, err := h.getMerchantsByUserID(userID)
+	userID := c.GetString("user_id")
+	merchants, err := h.getMerchantsByAuthUserID(userID)
 	if err != nil {
 		renderPage(c, "templates/layouts/base.html", "templates/error.html", gin.H{
 			"error": "Failed to load your businesses",
@@ -487,10 +414,10 @@ func (h *Handlers) MerchantProfile(c *gin.Context) {
 
 // Replace your existing UpdateMerchantProfile function in handlers.go with this:
 func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
-	userID := c.GetInt("user_id")
+	userID := c.GetString("user_id")
 
 	// Get or create merchant (your existing logic)
-	merchants, err := h.getMerchantsByUserID(userID)
+	merchants, err := h.getMerchantsByAuthUserID(userID)
 	if err != nil {
 		renderPage(c, "templates/layouts/base.html", "templates/error.html", gin.H{
 			"error": "Failed to load your business",
@@ -505,7 +432,7 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		// Create new merchant
 		businessName := c.PostForm("business_name")
 		slug := c.PostForm("slug")
-		merchantID, err = h.createMerchant(userID, businessName, slug)
+		merchantID, err = h.createMerchantWithAuthUserID(userID, businessName, slug)
 		if err != nil {
 			renderPage(c, "templates/layouts/base.html", "templates/merchant_profile.html", gin.H{
 				"title": "Profile",
@@ -548,7 +475,7 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		contentType := header.Header.Get("Content-Type")
 		if !strings.HasPrefix(contentType, "image/") {
 			// Get existing data for redisplay
-			merchants, _ := h.getMerchantsByUserID(userID)
+			merchants, _ := h.getMerchantsByAuthUserID(userID)
 			var merchant *Merchant
 			var details *MerchantDetails
 			if len(merchants) > 0 {
@@ -569,7 +496,7 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		logoURL, err = uploadToSupabase(file, header, "logos")
 		if err != nil {
 			// Get existing data for redisplay
-			merchants, _ := h.getMerchantsByUserID(userID)
+			merchants, _ := h.getMerchantsByAuthUserID(userID)
 			var merchant *Merchant
 			var details *MerchantDetails
 			if len(merchants) > 0 {
@@ -707,8 +634,9 @@ func (h *Handlers) createMerchant(userID int, businessName, slug string) (int, e
 
 func (h *Handlers) getMerchantByID(id int) (*Merchant, error) {
 	merchant := &Merchant{}
-	err := h.db.QueryRow("SELECT id, user_id, business_name, slug, is_active, created_at FROM merchants WHERE id = $1", id).
-		Scan(&merchant.ID, &merchant.UserID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt)
+	err := h.db.QueryRow("SELECT id, business_name, slug, is_active, created_at FROM merchants WHERE id = $1", id).
+		Scan(&merchant.ID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt)
+	merchant.UserID = 0 // Set default since we no longer use this field
 	return merchant, err
 }
 
@@ -765,8 +693,9 @@ func (h *Handlers) createUser(email, passwordHash, role string) (int, error) {
 
 func (h *Handlers) getMerchantBySlug(slug string) (*Merchant, error) {
 	merchant := &Merchant{}
-	err := h.db.QueryRow("SELECT id, user_id, business_name, slug, is_active, created_at FROM merchants WHERE slug = $1 AND is_active = true", slug).
-		Scan(&merchant.ID, &merchant.UserID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt)
+	err := h.db.QueryRow("SELECT id, business_name, slug, is_active, created_at FROM merchants WHERE slug = $1 AND is_active = true", slug).
+		Scan(&merchant.ID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt)
+	merchant.UserID = 0 // Set default since we no longer use this field
 	return merchant, err
 }
 
@@ -798,7 +727,7 @@ func (h *Handlers) getMerchantDetails(merchantID int) (*MerchantDetails, error) 
 }
 
 func (h *Handlers) getAllMerchants() ([]Merchant, error) {
-	rows, err := h.db.Query("SELECT id, user_id, business_name, slug, is_active, created_at FROM merchants ORDER BY created_at DESC")
+	rows, err := h.db.Query("SELECT id, business_name, slug, is_active, created_at FROM merchants ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -807,9 +736,10 @@ func (h *Handlers) getAllMerchants() ([]Merchant, error) {
 	var merchants []Merchant
 	for rows.Next() {
 		var merchant Merchant
-		if err := rows.Scan(&merchant.ID, &merchant.UserID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt); err != nil {
+		if err := rows.Scan(&merchant.ID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt); err != nil {
 			return nil, err
 		}
+		merchant.UserID = 0 // Set default since we no longer use this field
 		merchants = append(merchants, merchant)
 	}
 	return merchants, nil
@@ -836,7 +766,22 @@ func (h *Handlers) getAllMerchantsWithDetails() ([]Merchant, error) {
 }
 
 func (h *Handlers) getMerchantsByUserID(userID int) ([]Merchant, error) {
-	rows, err := h.db.Query("SELECT id, user_id, business_name, slug, is_active, created_at FROM merchants WHERE user_id = $1 ORDER BY created_at DESC", userID)
+	// This function is deprecated - user_id column no longer exists
+	// Return empty slice to prevent errors
+	return []Merchant{}, nil
+}
+
+// Auth.users UUID-based functions (migrated from auth_user_helpers.go)
+func (h *Handlers) createMerchantWithAuthUserID(authUserID, businessName, slug string) (int, error) {
+	var merchantID int
+	err := h.db.QueryRow("INSERT INTO merchants (auth_user_id, business_name, slug) VALUES ($1, $2, $3) RETURNING id",
+		authUserID, businessName, slug).Scan(&merchantID)
+	return merchantID, err
+}
+
+func (h *Handlers) getMerchantsByAuthUserID(authUserID string) ([]Merchant, error) {
+	log.Printf("getMerchantsByAuthUserID: Querying for auth_user_id = %s", authUserID)
+	rows, err := h.db.Query("SELECT id, business_name, slug, is_active, created_at FROM merchants WHERE auth_user_id = $1 ORDER BY created_at DESC", authUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -845,9 +790,10 @@ func (h *Handlers) getMerchantsByUserID(userID int) ([]Merchant, error) {
 	var merchants []Merchant
 	for rows.Next() {
 		var merchant Merchant
-		if err := rows.Scan(&merchant.ID, &merchant.UserID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt); err != nil {
+		if err := rows.Scan(&merchant.ID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt); err != nil {
 			return nil, err
 		}
+		merchant.UserID = 0 // Set default since we no longer use this field
 		merchants = append(merchants, merchant)
 	}
 	return merchants, nil

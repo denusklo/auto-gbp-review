@@ -328,7 +328,7 @@
                         break;
                     case 'facebook':
                         if (businessDetails.facebook_url) {
-                            url = businessDetails.facebook_url;
+                            url = `${businessDetails.facebook_url}reviews`;
                         } else {
                             url = `https://www.facebook.com/search/top?q=${encodeURIComponent(businessName)}`;
                         }

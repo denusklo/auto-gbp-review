@@ -1,0 +1,12 @@
+{
+  "name": "auto-gbp-review-migration",
+  "version": "1.0.0",
+  "description": "Migration scripts for Auto GBP Review",
+  "scripts": {
+    "migrate-users": "node migrate_auth.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1"
+  }
+}

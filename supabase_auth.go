@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
+	"os/exec"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -68,7 +70,7 @@ func SupabaseRegister(c *gin.Context) {
 	ctx := context.Background()
 	
 	// Sign up with email and password
-	user, err := client.Auth.SignUp(ctx, supa.UserCredentials{
+	_, err := client.Auth.SignUp(ctx, supa.UserCredentials{
 		Email:    email,
 		Password: password,
 		Data: map[string]interface{}{
@@ -87,27 +89,11 @@ func SupabaseRegister(c *gin.Context) {
 		return
 	}
 	
-	// Auto-login after registration
-	loginUser, err := client.Auth.SignIn(ctx, supa.UserCredentials{
-		Email:    email,
-		Password: password,
+	// Registration successful - always show success message
+	// Supabase will send confirmation email if required
+	renderPage(c, "templates/layouts/auth.html", "templates/auth/register.html", gin.H{
+		"success": "Registration successful! Please check your email to confirm your account, then return to login.",
 	})
-	
-	if err != nil {
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/register.html", gin.H{
-			"error": "Registration successful but login failed. Please login manually.",
-		})
-		return
-	}
-	
-	// Set cookies
-	c.SetCookie("sb_access_token", loginUser.AccessToken, 3600, "/", "", false, true)
-	c.SetCookie("sb_refresh_token", loginUser.RefreshToken, 86400*7, "/", "", false, true)
-	
-	// For new registrations, return the user object for verification
-	_ = user // Using the signup user data if needed
-	
-	c.Redirect(http.StatusFound, "/dashboard")
 }
 
 // SupabaseLogout handles user logout
@@ -243,16 +229,38 @@ func ForgotPasswordPage(c *gin.Context) {
 // ForgotPassword handles password reset requests
 func ForgotPassword(c *gin.Context) {
 	email := c.PostForm("email")
+	log.Printf("Password reset requested for: %s", email)
 	
 	client := GetSupabaseClient()
 	ctx := context.Background()
 	
-	// Request password reset
-	err := client.Auth.SendMagicLink(ctx, email)
+	// Check if user exists using Supabase Management API
+	userExists, err := checkUserExistsSupabase(email)
+	log.Printf("User check for %s: exists=%t, err=%v", email, userExists, err)
 	
 	if err != nil {
+		log.Printf("Error checking user existence: %v", err)
+		// Continue with password reset attempt for security
+	} else if !userExists {
+		log.Printf("User %s does not exist, showing error", email)
 		renderPage(c, "templates/layouts/auth.html", "templates/auth/forgot_password.html", gin.H{
-			"error": "Failed to send reset email. Please try again.",
+			"error": "No account found with this email address.",
+		})
+		return
+	}
+	
+	log.Printf("User %s exists, proceeding with password reset", email)
+	
+	// Request password reset - use environment-aware redirect URL
+	redirectURL := getResetPasswordURL(c)
+	log.Printf("Sending password reset for %s to redirect URL: %s", email, redirectURL)
+	
+	err = client.Auth.ResetPasswordForEmail(ctx, email, redirectURL)
+	
+	if err != nil {
+		log.Printf("Password reset error for %s: %v", email, err)
+		renderPage(c, "templates/layouts/auth.html", "templates/auth/forgot_password.html", gin.H{
+			"error": "Failed to send reset email. Please check your email address and try again.",
 		})
 		return
 	}
@@ -260,6 +268,29 @@ func ForgotPassword(c *gin.Context) {
 	renderPage(c, "templates/layouts/auth.html", "templates/auth/forgot_password.html", gin.H{
 		"success": true,
 	})
+}
+
+// checkUserExistsSupabase checks if a user exists using Node.js helper
+func checkUserExistsSupabase(email string) (bool, error) {
+	cmd := exec.Command("node", "check_user.js", email)
+	output, err := cmd.Output()
+	if err != nil {
+		return false, err
+	}
+	
+	result := strings.TrimSpace(string(output))
+	return result == "true", nil
+}
+
+// getResetPasswordURL returns the appropriate reset password URL
+func getResetPasswordURL(c *gin.Context) string {
+	// Get the host from the request
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	host := c.Request.Host
+	return fmt.Sprintf("%s://%s/reset-password", scheme, host)
 }
 
 // ResetPasswordPage renders the reset password form (when user clicks link in email)

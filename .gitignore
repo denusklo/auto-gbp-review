@@ -76,3 +76,5 @@ yarn-error.log*
 .cache/
 
 /GEMINI.md
+/CLAUDE.md
+auto-gbp-review

@@ -74,7 +74,7 @@ func (db *Database) migrate() error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS merchants (
 			id SERIAL PRIMARY KEY,
-			user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+			auth_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
 			business_name VARCHAR(255) NOT NULL,
 			slug VARCHAR(255) UNIQUE NOT NULL,
 			is_active BOOLEAN DEFAULT true,
@@ -103,7 +103,7 @@ func (db *Database) migrate() error {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_merchants_slug ON merchants(slug)`,
-		`CREATE INDEX IF NOT EXISTS idx_merchants_user_id ON merchants(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_merchants_auth_user_id ON merchants(auth_user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_merchant_details_merchant_id ON merchant_details(merchant_id)`,
 	}
 
