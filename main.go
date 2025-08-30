@@ -2,9 +2,12 @@ package main
 
 import (
 	"html/template"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -71,6 +74,9 @@ func main() {
 		port = "8082"
 	}
 
+	// Start the keep-alive pinger to prevent Render.com spin down
+	go startKeepAlivePinger()
+
 	log.Printf("Server starting on port %s", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)
@@ -121,10 +127,79 @@ func InitRoutes(router *gin.Engine, db *Database) {
 		merchant.POST("/profile", handlers.UpdateMerchantProfile) // Changed from PUT to POST
 	}
 
+	// Health check endpoint
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":    "healthy",
+			"timestamp": time.Now().Format(time.RFC3339),
+		})
+	})
+
 	// API routes for HTMX
 	api := router.Group("/api")
 	{
 		api.POST("/merchants/:id/toggle-status", handlers.ToggleMerchantStatus)
+	}
+}
+
+// startKeepAlivePinger starts a goroutine that pings the health endpoint every 14 minutes
+// to prevent Render.com free tier from spinning down due to inactivity
+func startKeepAlivePinger() {
+	// Only run keep-alive in production (when deployed to Render.com)
+	if os.Getenv("RENDER") != "true" {
+		log.Println("Keep-alive pinger disabled (not running on Render.com)")
+		return
+	}
+
+	// Get base URL from environment variable
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		log.Println("BASE_URL environment variable not set, skipping keep-alive pinger")
+		return
+	}
+
+	// Parse base URL and add health path
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		log.Printf("Invalid BASE_URL: %v, skipping keep-alive pinger", err)
+		return
+	}
+	parsedURL.Path = "/health"
+	healthURL := parsedURL.String()
+
+	// Ping every 5 seconds for testing (switch back to 14 minutes for production)
+	interval := 14 * time.Minute // Production: 14 minutes
+	// interval := 5 * time.Second // Testing: 5 seconds
+
+	log.Printf("Starting keep-alive pinger - will ping %s every %s", healthURL, interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			go func() {
+				client := &http.Client{
+					Timeout: 30 * time.Second,
+				}
+
+				resp, err := client.Get(healthURL)
+				if err != nil {
+					log.Printf("Keep-alive ping failed: %v", err)
+					return
+				}
+				defer resp.Body.Close()
+
+				// Read and discard response body to avoid resource leaks
+				if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+					log.Printf("Error discarding response body: %v", err)
+				}
+
+				log.Printf("Keep-alive ping successful: Status %d at %s",
+					resp.StatusCode, time.Now().Format(time.RFC3339))
+			}()
+		}
 	}
 }
 
