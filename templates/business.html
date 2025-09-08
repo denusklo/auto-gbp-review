@@ -34,64 +34,89 @@
             <h2 class="text-2xl font-bold text-gray-900 mb-6">Connect With Us</h2>
             <p class="text-gray-600 mb-6">Discover our social media, apps, and find directions to our location!</p>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 <!-- Google Reviews Card -->
                 <div class="review-card bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
                     onclick="showReviews('google')" data-platform="google">
-                    <div class="p-6 text-center">
-                        <div class="w-12 h-12 mx-auto mb-3 bg-red-100 rounded-full flex items-center justify-center">
-                            <i class="fab fa-google text-red-600 text-xl"></i>
+                    <div class="p-6">
+                        <!-- Mobile: side by side, Medium+: stacked -->
+                        <div class="flex items-center md:flex-col md:text-center">
+                            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
+                                <i class="fab fa-google text-red-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4 md:ml-0">
+                                <h3 class="font-semibold text-gray-900 text-sm">Google</h3>
+                                <p class="text-xs text-gray-500 mt-1">Reviews</p>
+                            </div>
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-sm">Google</h3>
-                        <p class="text-xs text-gray-500 mt-1">Reviews</p>
                     </div>
                 </div>
 
                 <!-- Facebook Reviews Card -->
                 <div class="review-card bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
                     onclick="showReviews('facebook')" data-platform="facebook">
-                    <div class="p-6 text-center">
-                        <div class="w-12 h-12 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
-                            <i class="fab fa-facebook text-blue-600 text-xl"></i>
+                    <div class="p-6">
+                        <!-- Mobile: side by side, Medium+: stacked -->
+                        <div class="flex items-center md:flex-col md:text-center">
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
+                                <i class="fab fa-facebook text-blue-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4 md:ml-0">
+                                <h3 class="font-semibold text-gray-900 text-sm">Facebook</h3>
+                                <p class="text-xs text-gray-500 mt-1">Reviews</p>
+                            </div>
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-sm">Facebook</h3>
-                        <p class="text-xs text-gray-500 mt-1">Reviews</p>
                     </div>
                 </div>
 
                 <!-- Website Card -->
                 <div class="review-card {{if not .details.WebsiteURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
                     {{if .details.WebsiteURL}}onclick="openLink('website')" {{end}} data-platform="website">
-                    <div class="p-6 text-center">
-                        <div class="w-12 h-12 mx-auto mb-3 bg-purple-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-globe text-purple-600 text-xl"></i>
+                    <div class="p-6">
+                        <!-- Mobile: side by side, Medium+: stacked -->
+                        <div class="flex items-center md:flex-col md:text-center">
+                            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
+                                <i class="fas fa-globe text-purple-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4 md:ml-0">
+                                <h3 class="font-semibold text-gray-900 text-sm">Website</h3>
+                                <p class="text-xs text-gray-500 mt-1">Know More</p>
+                            </div>
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-sm">Website</h3>
-                        <p class="text-xs text-gray-500 mt-1">Know More</p>
                     </div>
                 </div>
 
                 <!-- Instagram Card -->
                 <div class="review-card {{if not .details.InstagramURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
                     {{if .details.InstagramURL}}onclick="openLink('instagram')" {{end}} data-platform="instagram">
-                    <div class="p-6 text-center">
-                        <div class="w-12 h-12 mx-auto mb-3 bg-pink-100 rounded-full flex items-center justify-center">
-                            <i class="fab fa-instagram text-pink-600 text-xl"></i>
+                    <div class="p-6">
+                        <!-- Mobile: side by side, Medium+: stacked -->
+                        <div class="flex items-center md:flex-col md:text-center">
+                            <div class="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
+                                <i class="fab fa-instagram text-pink-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4 md:ml-0">
+                                <h3 class="font-semibold text-gray-900 text-sm">Instagram</h3>
+                                <p class="text-xs text-gray-500 mt-1">Follow Us</p>
+                            </div>
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-sm">Instagram</h3>
-                        <p class="text-xs text-gray-500 mt-1">Follow Us</p>
                     </div>
                 </div>
 
                 <!-- TikTok Card -->
                 <div class="review-card {{if not .details.TiktokURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
                     {{if .details.TiktokURL}}onclick="openLink('tiktok')" {{end}} data-platform="tiktok">
-                    <div class="p-6 text-center">
-                        <div class="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
-                            <i class="fab fa-tiktok text-gray-900 text-xl"></i>
+                    <div class="p-6">
+                        <!-- Mobile: side by side, Medium+: stacked -->
+                        <div class="flex items-center md:flex-col md:text-center">
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
+                                <i class="fab fa-tiktok text-gray-900 text-xl"></i>
+                            </div>
+                            <div class="ml-4 md:ml-0">
+                                <h3 class="font-semibold text-gray-900 text-sm">TikTok</h3>
+                                <p class="text-xs text-gray-500 mt-1">Follow Us</p>
+                            </div>
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-sm">TikTok</h3>
-                        <p class="text-xs text-gray-500 mt-1">Follow Us</p>
                     </div>
                 </div>
 
@@ -157,12 +182,17 @@
                 <!-- Xiao Hong Shu Card -->
                 <div class="review-card {{if not .details.XiaohongshuID}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
                     {{if .details.XiaohongshuID}}onclick="openLink('xiaohongshu')" {{end}} data-platform="xiaohongshu">
-                    <div class="p-6 text-center">
-                        <div class="w-12 h-12 mx-auto mb-3 bg-red-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-book text-red-600 text-xl"></i>
+                    <div class="p-6">
+                        <!-- Mobile: side by side, Medium+: stacked -->
+                        <div class="flex items-center md:flex-col md:text-center">
+                            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
+                                <i class="fas fa-book text-red-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4 md:ml-0">
+                                <h3 class="font-semibold text-gray-900 text-sm">小红书</h3>
+                                <p class="text-xs text-gray-500 mt-1">Follow Us</p>
+                            </div>
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-sm">小红书</h3>
-                        <p class="text-xs text-gray-500 mt-1">Follow Us</p>
                     </div>
                 </div>
             </div>
