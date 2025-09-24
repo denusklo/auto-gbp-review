@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -46,13 +47,18 @@ func GenerateWhatsAppAppLink(phoneNumber, message string) string {
 
 // In your Go backend
 func GetGooglePlaceID(businessName, address string) (string, error) {
+	log.Printf("GetGooglePlaceID: businessName=%s, address=%s", businessName, address)
+
 	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
 	if apiKey == "" {
-		return "", fmt.Errorf("GOOGLE_PLACES_API_KEY not set")
+		err := fmt.Errorf("GOOGLE_PLACES_API_KEY not set")
+		log.Printf("GetGooglePlaceID error: %v", err)
+		return "", err
 	}
 
 	// Combine business name and address for better search results
 	query := fmt.Sprintf("%s %s", businessName, address)
+	log.Printf("GetGooglePlaceID: search query=%s", query)
 
 	// Create the API URL
 	apiURL := fmt.Sprintf(
@@ -60,31 +66,47 @@ func GetGooglePlaceID(businessName, address string) (string, error) {
 		url.QueryEscape(query),
 		apiKey,
 	)
+	log.Printf("GetGooglePlaceID: API URL=%s", strings.ReplaceAll(apiURL, apiKey, "[REDACTED]"))
 
 	// Make the API request
 	resp, err := http.Get(apiURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to make API request: %v", err)
+		err = fmt.Errorf("failed to make API request: %v", err)
+		log.Printf("GetGooglePlaceID error: %v", err)
+		return "", err
 	}
 	defer resp.Body.Close()
+
+	log.Printf("GetGooglePlaceID: API response status=%d", resp.StatusCode)
 
 	// Parse the response
 	var result PlacesAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("failed to decode API response: %v", err)
+		err = fmt.Errorf("failed to decode API response: %v", err)
+		log.Printf("GetGooglePlaceID error: %v", err)
+		return "", err
 	}
+
+	log.Printf("GetGooglePlaceID: API status=%s, results count=%d", result.Status, len(result.Results))
 
 	// Check if we got results
 	if result.Status != "OK" {
-		return "", fmt.Errorf("API returned status: %s", result.Status)
+		err := fmt.Errorf("API returned status: %s", result.Status)
+		log.Printf("GetGooglePlaceID error: %v", err)
+		return "", err
 	}
 
 	if len(result.Results) == 0 {
-		return "", fmt.Errorf("no places found for query: %s", query)
+		err := fmt.Errorf("no places found for query: %s", query)
+		log.Printf("GetGooglePlaceID error: %v", err)
+		return "", err
 	}
 
 	// Return the first result's Place ID
-	return result.Results[0].PlaceID, nil
+	placeID := result.Results[0].PlaceID
+	placeName := result.Results[0].Name
+	log.Printf("GetGooglePlaceID success: placeID=%s, placeName=%s", placeID, placeName)
+	return placeID, nil
 }
 
 // GenerateWazeURL creates a Waze URL similar to the example format

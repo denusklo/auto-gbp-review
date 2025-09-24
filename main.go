@@ -17,9 +17,8 @@ import (
 func renderPage(c *gin.Context, layout string, content string, data gin.H) {
 	tmpl, err := template.ParseFiles(layout, content)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{
-			"error": "Template parsing error: " + err.Error(),
-		})
+		log.Printf("Template parsing error: %v", err)
+		c.String(http.StatusInternalServerError, "Template parsing error: %s", err.Error())
 		return
 	}
 
@@ -35,9 +34,7 @@ func renderPage(c *gin.Context, layout string, content string, data gin.H) {
 	err = tmpl.Execute(c.Writer, data)
 	if err != nil {
 		log.Printf("Template execution error: %v", err)
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{
-			"error": "Template execution error: " + err.Error(),
-		})
+		c.String(http.StatusInternalServerError, "Template execution error: %s", err.Error())
 	}
 }
 
@@ -139,6 +136,18 @@ func InitRoutes(router *gin.Engine, db *Database) {
 	api := router.Group("/api")
 	{
 		api.POST("/merchants/:id/toggle-status", handlers.ToggleMerchantStatus)
+
+		// Public API for reviews data
+		api.GET("/reviews/data/:merchantId", handlers.GetReviewsData)
+		api.GET("/reviews/modal/:merchantId/:platform", handlers.GetReviewModal)
+
+		// Review routes (protected)
+		reviewsAPI := api.Group("/reviews")
+		reviewsAPI.Use(SupabaseAuthMiddleware("merchant"))
+		{
+			reviewsAPI.POST("/add", handlers.AddReview)
+			reviewsAPI.DELETE("/:id", handlers.DeleteReview)
+		}
 	}
 }
 

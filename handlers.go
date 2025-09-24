@@ -3,6 +3,7 @@ package main
 import (
 	"auto-gbp-review/utils"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -71,12 +72,11 @@ func (h *Handlers) BusinessPage(c *gin.Context, businessID string) {
 		return
 	}
 
-	// Hardcoded reviews for demonstration
-	reviews := []Review{
-		{ID: 1, Platform: "google", Author: "John Doe", Text: "Excellent service! Highly recommended.", Rating: 5},
-		{ID: 2, Platform: "google", Author: "Jane Smith", Text: "Great experience, will come back again.", Rating: 5},
-		{ID: 3, Platform: "facebook", Author: "Bob Wilson", Text: "Outstanding quality and friendly staff.", Rating: 4},
-		{ID: 4, Platform: "facebook", Author: "Alice Brown", Text: "Very satisfied with the service provided.", Rating: 5},
+	// Get active reviews for this merchant
+	reviews, err := h.getActiveReviewsByMerchantID(merchant.ID)
+	if err != nil {
+		log.Printf("Failed to fetch reviews for merchant %d: %v", merchant.ID, err)
+		reviews = []Review{} // Empty slice if no reviews or error
 	}
 
 	// Clean phone number for tel: links
@@ -405,10 +405,16 @@ func (h *Handlers) MerchantProfile(c *gin.Context) {
 		details, _ = h.getMerchantDetails(merchant.ID)
 	}
 
+	var reviews []Review
+	if merchant != nil {
+		reviews, _ = h.getReviewsByMerchantID(merchant.ID)
+	}
+
 	renderPage(c, "templates/layouts/base.html", "templates/merchant_profile.html", gin.H{
 		"title":    "Profile",
 		"merchant": merchant,
 		"details":  details,
+		"reviews":  reviews,
 	})
 }
 
@@ -552,6 +558,25 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		return
 	}
 
+	// Handle review updates if present
+	reviewUpdatesJSON := c.PostForm("review_updates")
+	if reviewUpdatesJSON != "" {
+		var reviewUpdates []map[string]interface{}
+		if err := json.Unmarshal([]byte(reviewUpdatesJSON), &reviewUpdates); err == nil {
+			for _, update := range reviewUpdates {
+				if reviewIDStr, ok := update["id"].(string); ok {
+					if reviewID, err := strconv.Atoi(reviewIDStr); err == nil {
+						platform := update["platform"].(string)
+						text := update["text"].(string)
+						isActive := update["is_active"].(bool)
+
+						h.updateReview(reviewID, platform, text, isActive)
+					}
+				}
+			}
+		}
+	}
+
 	c.Redirect(http.StatusFound, "/dashboard/profile?success=1")
 }
 
@@ -617,11 +642,13 @@ type MerchantDetails struct {
 }
 
 type Review struct {
-	ID       int    `json:"id"`
-	Platform string `json:"platform"`
-	Author   string `json:"author"`
-	Text     string `json:"text"`
-	Rating   int    `json:"rating"`
+	ID         int       `json:"id"`
+	MerchantID int       `json:"merchant_id"`
+	Platform   string    `json:"platform"`
+	ReviewText string    `json:"review_text"`
+	IsActive   bool      `json:"is_active"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // Database operations for merchants
@@ -797,4 +824,260 @@ func (h *Handlers) getMerchantsByAuthUserID(authUserID string) ([]Merchant, erro
 		merchants = append(merchants, merchant)
 	}
 	return merchants, nil
+}
+
+// Review database operations
+func (h *Handlers) getReviewsByMerchantID(merchantID int) ([]Review, error) {
+	rows, err := h.db.Query(`
+		SELECT id, merchant_id, platform, review_text, is_active, created_at, updated_at
+		FROM merchant_reviews
+		WHERE merchant_id = $1
+		ORDER BY created_at DESC
+	`, merchantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reviews []Review
+	for rows.Next() {
+		var review Review
+		if err := rows.Scan(&review.ID, &review.MerchantID, &review.Platform,
+			&review.ReviewText, &review.IsActive, &review.CreatedAt, &review.UpdatedAt); err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, review)
+	}
+	return reviews, nil
+}
+
+func (h *Handlers) getActiveReviewsByMerchantID(merchantID int) ([]Review, error) {
+	rows, err := h.db.Query(`
+		SELECT id, merchant_id, platform, review_text, is_active, created_at, updated_at
+		FROM merchant_reviews
+		WHERE merchant_id = $1 AND is_active = true
+		ORDER BY created_at DESC
+	`, merchantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reviews []Review
+	for rows.Next() {
+		var review Review
+		if err := rows.Scan(&review.ID, &review.MerchantID, &review.Platform,
+			&review.ReviewText, &review.IsActive, &review.CreatedAt, &review.UpdatedAt); err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, review)
+	}
+	return reviews, nil
+}
+
+func (h *Handlers) createReview(merchantID int, platform, reviewText string) error {
+	log.Printf("createReview: Inserting merchantID=%d, platform=%s, reviewText=%s", merchantID, platform, reviewText)
+	_, err := h.db.Exec(`
+		INSERT INTO merchant_reviews (merchant_id, platform, review_text, is_active)
+		VALUES ($1, $2, $3, true)
+	`, merchantID, platform, reviewText)
+	if err != nil {
+		log.Printf("createReview SQL error: %v", err)
+	}
+	return err
+}
+
+func (h *Handlers) updateReview(reviewID int, platform, reviewText string, isActive bool) error {
+	_, err := h.db.Exec(`
+		UPDATE merchant_reviews
+		SET platform = $2, review_text = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+	`, reviewID, platform, reviewText, isActive)
+	return err
+}
+
+func (h *Handlers) deleteReview(reviewID int) error {
+	_, err := h.db.Exec("DELETE FROM merchant_reviews WHERE id = $1", reviewID)
+	return err
+}
+
+// API handlers for reviews
+func (h *Handlers) AddReview(c *gin.Context) {
+	userID := c.GetString("user_id")
+	log.Printf("AddReview: userID = %s", userID)
+
+	// Get merchant for this user
+	merchants, err := h.getMerchantsByAuthUserID(userID)
+	if err != nil || len(merchants) == 0 {
+		log.Printf("AddReview error: No merchant found for user %s, err: %v", userID, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No merchant found"})
+		return
+	}
+
+	merchantID := merchants[0].ID
+	platform := c.PostForm("platform")
+	reviewText := c.PostForm("text")
+
+	log.Printf("AddReview: merchantID=%d, platform=%s, reviewText=%s", merchantID, platform, reviewText)
+
+	if platform == "" || reviewText == "" {
+		log.Printf("AddReview error: Missing fields - platform=%s, reviewText=%s", platform, reviewText)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Platform and text are required"})
+		return
+	}
+
+	// Create review template with just platform and text
+	err = h.createReview(merchantID, platform, reviewText)
+	if err != nil {
+		log.Printf("AddReview error: Failed to create review - %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create review"})
+		return
+	}
+
+	log.Printf("AddReview: Successfully created review template")
+	// Return success response for HTMX - trigger page reload
+	c.Header("HX-Refresh", "true")
+	c.Status(http.StatusOK)
+}
+
+func (h *Handlers) DeleteReview(c *gin.Context) {
+	reviewIDStr := c.Param("id")
+	reviewID, err := strconv.Atoi(reviewIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review ID"})
+		return
+	}
+
+	err = h.deleteReview(reviewID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete review"})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+// GetReviewsData returns reviews data as JSON for a specific merchant
+func (h *Handlers) GetReviewsData(c *gin.Context) {
+	merchantIDStr := c.Param("merchantId")
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid merchant ID"})
+		return
+	}
+
+	// Get active reviews for this merchant
+	reviews, err := h.getActiveReviewsByMerchantID(merchantID)
+	if err != nil {
+		log.Printf("Failed to fetch reviews for merchant %d: %v", merchantID, err)
+		reviews = []Review{} // Empty slice if error
+	}
+
+	// Group reviews by platform for the frontend
+	reviewsData := map[string][]map[string]interface{}{
+		"google":   make([]map[string]interface{}, 0),
+		"facebook": make([]map[string]interface{}, 0),
+	}
+
+	for _, review := range reviews {
+		reviewItem := map[string]interface{}{
+			"id":     review.ID,
+			"text":   review.ReviewText,
+		}
+
+		if review.Platform == "google" {
+			reviewsData["google"] = append(reviewsData["google"], reviewItem)
+		} else if review.Platform == "facebook" {
+			reviewsData["facebook"] = append(reviewsData["facebook"], reviewItem)
+		}
+	}
+
+	c.JSON(http.StatusOK, reviewsData)
+}
+
+// GetReviewModal returns HTML content for the review modal
+func (h *Handlers) GetReviewModal(c *gin.Context) {
+	merchantIDStr := c.Param("merchantId")
+	platform := c.Param("platform")
+
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid merchant ID")
+		return
+	}
+
+	// Get active reviews for this merchant and platform
+	reviews, err := h.getActiveReviewsByMerchantID(merchantID)
+	if err != nil {
+		log.Printf("Failed to fetch reviews for merchant %d: %v", merchantID, err)
+		reviews = []Review{}
+	}
+
+	// Filter by platform
+	var platformReviews []Review
+	for _, review := range reviews {
+		if review.Platform == platform {
+			platformReviews = append(platformReviews, review)
+		}
+	}
+
+	// Get merchant and business details for URLs
+	merchant, _ := h.getMerchantByID(merchantID)
+	details, _ := h.getMerchantDetails(merchantID)
+
+	// Generate HTML content
+	html := fmt.Sprintf(`
+		<div class="modal-header">
+			<h5 class="modal-title">%s Reviews</h5>
+			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+		</div>
+		<div class="modal-body">
+			<div class="mb-4">
+	`, strings.Title(platform))
+
+	if len(platformReviews) == 0 {
+		html += `<div class="text-center py-4"><p class="text-muted">No review templates available.</p></div>`
+	} else {
+		for _, review := range platformReviews {
+			html += fmt.Sprintf(`
+				<div class="card mb-3">
+					<div class="input-group">
+						<input type="text" class="form-control" value="%s" readonly onclick="copyAndRedirect('%s', '%s')">
+						<button class="btn btn-outline-secondary" type="button" onclick="copyAndRedirect('%s', '%s')">
+							<i class="fas fa-copy"></i>
+						</button>
+					</div>
+				</div>
+			`, review.ReviewText, review.ReviewText, platform, review.ReviewText, platform)
+		}
+	}
+
+	// Add write review button
+	writeURL := ""
+	if platform == "google" {
+		if details.Address != "" {
+			writeURL = fmt.Sprintf("https://www.google.com/maps/search/%s", url.QueryEscape(details.Address))
+		} else if merchant != nil {
+			writeURL = fmt.Sprintf("https://www.google.com/maps/search/%s", url.QueryEscape(merchant.BusinessName))
+		}
+	} else if platform == "facebook" {
+		if details.FacebookURL != "" {
+			writeURL = details.FacebookURL
+		} else if merchant != nil {
+			writeURL = fmt.Sprintf("https://www.facebook.com/search/top?q=%s", url.QueryEscape(merchant.BusinessName))
+		}
+	}
+
+	html += fmt.Sprintf(`
+			</div>
+			<div class="d-grid">
+				<button class="btn btn-primary" onclick="window.open('%s', '_blank')">
+					<i class="fas fa-edit me-2"></i>Write a Review
+				</button>
+			</div>
+		</div>
+	`, writeURL)
+
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
 }

@@ -259,33 +259,44 @@
     // Initialize Bootstrap modal
     const reviewModal = new bootstrap.Modal(document.getElementById('reviewModal'));
 
-    // Hardcoded reviews data
-    const reviewsData = {
+    // Reviews data from backend (avoiding template syntax issues)
+    const allReviews = [
+        {{range $index, $review := .reviews}}{{if $index}},{{end}}{
+            id: {{$review.ID}},
+            text: {{js $review.ReviewText}},
+            platform: "{{$review.Platform}}"
+        }{{end}}
+    ];
+
+    // Default review templates (shown when no custom templates exist)
+    const defaultTemplates = {
         google: [
-            { id: 1, author: "John Doe", text: "Excellent service! Highly recommended.", rating: 5 },
-            { id: 2, author: "Jane Smith", text: "Great experience, will come back again.", rating: 5 },
-            { id: 3, author: "Mike Johnson", text: "Professional and friendly staff.", rating: 4 },
-            { id: 4, author: "Sarah Wilson", text: "Outstanding quality and value.", rating: 5 }
+            { id: 1, text: "Excellent service! Highly recommended.", platform: "google" },
+            { id: 2, text: "Great experience, will come back again.", platform: "google" },
+            { id: 3, text: "Professional and friendly staff.", platform: "google" },
+            { id: 4, text: "Outstanding quality and value.", platform: "google" }
         ],
         facebook: [
-            { id: 5, author: "Bob Wilson", text: "Outstanding quality and friendly staff.", rating: 4 },
-            { id: 6, author: "Alice Brown", text: "Very satisfied with the service provided.", rating: 5 },
-            { id: 7, author: "Tom Davis", text: "Highly professional team, great results!", rating: 5 },
-            { id: 8, author: "Lisa Garcia", text: "Exceeded my expectations in every way.", rating: 5 }
+            { id: 5, text: "Outstanding quality and friendly staff.", platform: "facebook" },
+            { id: 6, text: "Very satisfied with the service provided.", platform: "facebook" },
+            { id: 7, text: "Highly professional team, great results!", platform: "facebook" },
+            { id: 8, text: "Exceeded my expectations in every way.", platform: "facebook" }
         ]
     };
 
-    const businessDetails = {
-        address: "{{.details.Address}}",
-        facebook_url: "{{.details.FacebookURL}}",
-        instagram_url: "{{.details.InstagramURL}}",
-        tiktok_url: "{{.details.TiktokURL}}",
-        google_maps_url: "{{.details.GoogleMapsURL}}",
-        website_url: "{{.details.WebsiteURL}}",
-        googleplay_url: "{{.details.GooglePlayURL}}",
-        appstore_url: "{{.details.AppStoreURL}}",
-        xiaohongshu_url: "{{.details.XiaohongshuID}}"
+    // Group reviews by platform, use defaults if no custom reviews exist
+    const reviewsData = {
+        google: allReviews.filter(review => review.platform === 'google'),
+        facebook: allReviews.filter(review => review.platform === 'facebook')
     };
+
+    // Use default templates if no custom templates exist for a platform
+    if (reviewsData.google.length === 0) {
+        reviewsData.google = defaultTemplates.google;
+    }
+    if (reviewsData.facebook.length === 0) {
+        reviewsData.facebook = defaultTemplates.facebook;
+    }
 
     function showReviews(platform) {
         const modalTitle = document.getElementById('modalTitle');
@@ -315,57 +326,46 @@
         const div = document.createElement('div');
         div.className = 'card mb-3';
 
-        const stars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
-
         div.innerHTML = `
-        <div class="input-group">
-            <input type="text" class="form-control" value="${review.text}" readonly onclick="copyAndRedirect('${review.text}', '${platform}')">
-            <button class="btn btn-outline-secondary" type="button" onclick="copyReviewText('${review.text}')">
-                <i class="fas fa-copy"></i>
-            </button>
-        </div>
-    `;
+            <div class="input-group">
+                <input type="text" class="form-control" value="${review.text}" readonly onclick="copyAndRedirect('${review.text}', '${platform}')">
+                <button class="btn btn-outline-secondary" type="button" onclick="copyReviewText('${review.text}')">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        `;
 
         return div;
     }
 
     function copyAndRedirect(reviewText, platform) {
-        // Copy the review text to clipboard
         navigator.clipboard.writeText(reviewText).then(() => {
-            console.log('Review text copied to clipboard');
+            showToast('Review text copied! Redirecting...');
 
-            // Show a toast or brief notification
-            showToast(`Review text copied! Redirecting to ${platform.charAt(0).toUpperCase() + platform.slice(1)}...`);
-
-            // Redirect to the appropriate platform after a brief delay
             setTimeout(() => {
-                const businessName = "{{.merchant.BusinessName}}";
-                const address = businessDetails.address;
                 let url = '';
+                const businessName = {{js .merchant.BusinessName}};
+                const address = {{js .details.Address}};
+                const googlePlaceID = {{js .googlePlaceID}};
 
                 switch (platform) {
                     case 'google':
-                        const googlePlaceID = "{{.googlePlaceID}}";
-                        if (googlePlaceID && googlePlaceID !== "") {
+                        if (googlePlaceID) {
                             url = `https://search.google.com/local/writereview?placeid=${googlePlaceID}`;
+                        } else if (address) {
+                            url = `https://www.google.com/maps/search/${encodeURIComponent(address)}`;
                         } else {
-                            if (address) {
-                                url = `https://www.google.com/maps/search/${encodeURIComponent(address)}`;
-                            } else {
-                                url = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
-                            }
+                            url = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
                         }
                         break;
                     case 'facebook':
-                        if (businessDetails.facebook_url) {
-                            url = `${businessDetails.facebook_url}reviews`;
+                        const facebookURL = {{js .details.FacebookURL}};
+                        if (facebookURL) {
+                            url = `${facebookURL}reviews`;
                         } else {
                             url = `https://www.facebook.com/search/top?q=${encodeURIComponent(businessName)}`;
                         }
                         break;
-                    default:
-                        // Fallback to Google if platform not recognized
-                        url = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
                 }
 
                 if (url) {
@@ -373,7 +373,6 @@
                 }
             }, 1000);
         }).catch(err => {
-            console.error('Failed to copy text: ', err);
             showToast('Failed to copy text');
         });
     }
@@ -382,70 +381,30 @@
         navigator.clipboard.writeText(reviewText).then(() => {
             showToast('Review text copied to clipboard!');
         }).catch(err => {
-            console.error('Failed to copy text: ', err);
             showToast('Failed to copy text');
         });
     }
 
-    function showToast(message) {
-        // Create a simple toast notification
-        const toast = document.createElement('div');
-        toast.className = 'position-fixed top-0 start-50 translate-middle-x mt-3 alert alert-success alert-dismissible fade show';
-        toast.style.zIndex = '9999';
-        toast.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        document.body.appendChild(toast);
-
-        // Auto remove after 3 seconds
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        }, 3000);
-    }
-
-    function openGoogleMapsDirections() {
-        const address = businessDetails.address;
-        if (address) {
-            const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
-            window.open(url, '_blank');
-        }
-    }
-
-    function openGoogleMapsSearch() {
-        const businessName = "{{.merchant.BusinessName}}";
-        const address = businessDetails.address;
-        let searchQuery = businessName;
-        if (address) {
-            searchQuery += ' ' + address;
-        }
-        const url = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
-        window.open(url, '_blank');
-    }
-
     function writeReview(platform) {
         let url = '';
-        const businessName = "{{.merchant.BusinessName}}";
-        const address = businessDetails.address;
+        const businessName = {{js .merchant.BusinessName}};
+        const address = {{js .details.Address}};
+        const googlePlaceID = {{js .googlePlaceID}};
 
         switch (platform) {
             case 'google':
-                const googlePlaceID = "{{.googlePlaceID}}";
-                if (googlePlaceID && googlePlaceID !== "") {
+                if (googlePlaceID) {
                     url = `https://search.google.com/local/writereview?placeid=${googlePlaceID}`;
+                } else if (address) {
+                    url = `https://www.google.com/maps/search/${encodeURIComponent(address)}`;
                 } else {
-                    if (address) {
-                        url = `https://www.google.com/maps/search/${encodeURIComponent(address)}`;
-                    } else {
-                        url = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
-                    }
+                    url = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
                 }
                 break;
             case 'facebook':
-                if (businessDetails.facebook_url) {
-                    url = businessDetails.facebook_url;
+                const facebookURL = {{js .details.FacebookURL}};
+                if (facebookURL) {
+                    url = facebookURL;
                 } else {
                     url = `https://www.facebook.com/search/top?q=${encodeURIComponent(businessName)}`;
                 }
@@ -458,37 +417,39 @@
         reviewModal.hide();
     }
 
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'position-fixed top-0 start-50 translate-middle-x mt-3 alert alert-success alert-dismissible fade show';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 3000);
+    }
+
     function openLink(platform) {
         let url = '';
-        const businessName = "{{.merchant.BusinessName}}";
-        const address = businessDetails.address;
-
         switch (platform) {
             case 'website':
-                url = businessDetails.website_url;
+                url = {{js .details.WebsiteURL}};
                 break;
             case 'instagram':
-                url = businessDetails.instagram_url;
+                url = {{js .details.InstagramURL}};
                 break;
             case 'tiktok':
-                url = businessDetails.tiktok_url;
-                break;
-            case 'googleplay':
-                url = businessDetails.googleplay_url;
-                break;
-            case 'appstore':
-                url = businessDetails.appstore_url;
-                break;
-            case 'googlemaps':
-                // This case is now handled by separate functions
-                break;
-            case 'waze':
-                if (address) {
-                    url = `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
-                }
+                url = {{js .details.TiktokURL}};
                 break;
             case 'xiaohongshu':
-                url = businessDetails.xiaohongshu_url;
+                url = {{js .details.XiaohongshuID}};
+                break;
+            case 'waze':
+                {{if .details.Address}}
+                url = 'https://waze.com/ul?q=' + encodeURIComponent({{js .details.Address}});
+                {{end}}
                 break;
         }
 
