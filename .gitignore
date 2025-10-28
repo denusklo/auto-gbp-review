@@ -78,3 +78,9 @@ yarn-error.log*
 /GEMINI.md
 /CLAUDE.md
 auto-gbp-review
+
+# Ignore all markdown files
+*.md
+
+# Except for README.md
+!README.md

@@ -9,8 +9,72 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	supa "github.com/nedpals/supabase-go"
 )
+
+// JWTClaims represents the custom claims in the Supabase JWT
+type JWTClaims struct {
+	UserRole string `json:"user_role"`
+	jwt.RegisteredClaims
+}
+
+// hasRequiredRole checks if the user's role satisfies the required role
+// Role hierarchy: superadmin > admin > merchant
+func hasRequiredRole(userRole, requiredRole string) bool {
+	// If no specific role required, allow all authenticated users
+	if requiredRole == "" {
+		return true
+	}
+
+	// Superadmin has access to everything
+	if userRole == "superadmin" {
+		return true
+	}
+
+	// Admin has access to admin and merchant routes
+	if userRole == "admin" && (requiredRole == "admin" || requiredRole == "merchant") {
+		return true
+	}
+
+	// Exact match
+	return userRole == requiredRole
+}
+
+// extractRoleFromJWT decodes the JWT and extracts the user_role custom claim
+func extractRoleFromJWT(tokenString string) (string, error) {
+	// Parse the JWT without verification (Supabase already verified it)
+	// We just need to extract the claims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+
+	token, _, err := parser.ParseUnverified(tokenString, &JWTClaims{})
+	if err != nil {
+		return "", fmt.Errorf("failed to parse JWT: %w", err)
+	}
+
+	// Extract custom claims
+	if claims, ok := token.Claims.(*JWTClaims); ok {
+		if claims.UserRole != "" {
+			return claims.UserRole, nil
+		}
+	}
+
+	// Fallback: try parsing as generic claims to get user_role
+	var claimsMap jwt.MapClaims
+	parser2 := jwt.NewParser(jwt.WithoutClaimsValidation())
+	token2, _, err := parser2.ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return "merchant", nil // Default to merchant if parsing fails
+	}
+
+	claimsMap = token2.Claims.(jwt.MapClaims)
+	if userRole, ok := claimsMap["user_role"].(string); ok {
+		return userRole, nil
+	}
+
+	// Default to merchant if no role found
+	return "merchant", nil
+}
 
 // SupabaseLogin handles user login with Supabase Auth
 func SupabaseLogin(c *gin.Context) {
@@ -36,17 +100,16 @@ func SupabaseLogin(c *gin.Context) {
 	// Set the access token as a cookie
 	c.SetCookie("sb_access_token", user.AccessToken, 3600, "/", "", false, true)
 	c.SetCookie("sb_refresh_token", user.RefreshToken, 86400*7, "/", "", false, true)
-	
-	// Get user role from metadata or database
-	role := "merchant"
-	if user.User.UserMetadata != nil {
-		if r, ok := user.User.UserMetadata["role"].(string); ok {
-			role = r
-		}
+
+	// Get user role from JWT custom claims (injected by Auth Hook)
+	role, err := extractRoleFromJWT(user.AccessToken)
+	if err != nil {
+		log.Printf("Error extracting role from JWT: %v", err)
+		role = "merchant" // Default to merchant
 	}
-	
+
 	// Redirect based on role
-	if role == "admin" {
+	if role == "admin" || role == "superadmin" {
 		c.Redirect(http.StatusFound, "/admin")
 	} else {
 		c.Redirect(http.StatusFound, "/dashboard")
@@ -155,27 +218,30 @@ func SupabaseAuthMiddleware(requiredRole string) gin.HandlerFunc {
 			}
 		}
 		
-		// Check role if specified
-		role := "merchant"
-		if user.UserMetadata != nil {
-			if r, ok := user.UserMetadata["role"].(string); ok {
-				role = r
-			}
+		// Get role from JWT custom claims (injected by Auth Hook)
+		// The Auth Hook also checks if user is banned
+		role, err := extractRoleFromJWT(accessToken)
+		if err != nil {
+			log.Printf("Error extracting role from JWT: %v", err)
+			c.Redirect(http.StatusFound, "/login")
+			c.Abort()
+			return
 		}
-		
-		if requiredRole != "" && role != requiredRole {
+
+		// Check if user has required role
+		if requiredRole != "" && !hasRequiredRole(role, requiredRole) {
 			renderPage(c, "templates/layouts/base.html", "templates/error.html", gin.H{
-				"error": "Access denied",
+				"error": "Access denied. You don't have permission to access this page.",
 			})
 			c.Abort()
 			return
 		}
-		
+
 		// Set user info in context
 		c.Set("user_id", user.ID)
 		c.Set("user_role", role)
 		c.Set("user_email", user.Email)
-		
+
 		c.Next()
 	}
 }
@@ -190,27 +256,26 @@ func SupabaseRedirectIfAuthenticated() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		
+
 		// Validate token with Supabase
 		client := GetSupabaseClient()
 		ctx := context.Background()
-		user, err := client.Auth.User(ctx, accessToken)
-		
+		_, err = client.Auth.User(ctx, accessToken)
+
 		if err != nil {
 			// Invalid token, continue to login/register page
 			c.Next()
 			return
 		}
-		
-		// Valid token found, redirect based on role
-		role := "merchant"
-		if user.UserMetadata != nil {
-			if r, ok := user.UserMetadata["role"].(string); ok {
-				role = r
-			}
+
+		// Valid token found, redirect based on role from JWT
+		role, err := extractRoleFromJWT(accessToken)
+		if err != nil {
+			log.Printf("Error extracting role from JWT: %v", err)
+			role = "merchant" // Default to merchant
 		}
-		
-		if role == "admin" {
+
+		if role == "admin" || role == "superadmin" {
 			c.Redirect(http.StatusFound, "/admin")
 		} else {
 			c.Redirect(http.StatusFound, "/dashboard")
@@ -318,20 +383,18 @@ func ResetPassword(c *gin.Context) {
 	ctx := context.Background()
 	
 	// Update password using the access token from the reset link
-	user, err := client.Auth.UpdateUser(ctx, accessToken, map[string]interface{}{
+	_, err := client.Auth.UpdateUser(ctx, accessToken, map[string]interface{}{
 		"password": newPassword,
 	})
-	
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to reset password",
 		})
 		return
 	}
-	
-	// User successfully updated
-	_ = user
-	
+
+	// Password successfully updated
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 	})

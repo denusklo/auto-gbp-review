@@ -457,6 +457,52 @@
             window.open(url, '_blank');
         }
     }
+
+    // Analytics Tracking
+    const merchantID = {{.merchant.ID}};
+
+    // Track page view on load
+    window.addEventListener('load', function() {
+        fetch('/api/track/view?merchant_id=' + merchantID)
+            .then(response => response.json())
+            .catch(error => console.log('Tracking error:', error));
+    });
+
+    // Track link clicks
+    function trackClick(platform, linkType = 'social') {
+        fetch('/api/track/click?merchant_id=' + merchantID + '&platform=' + platform + '&type=' + linkType)
+            .then(response => response.json())
+            .catch(error => console.log('Tracking error:', error));
+    }
+
+    // Override social link clicks to track
+    document.addEventListener('DOMContentLoaded', function() {
+        // Track review card clicks
+        document.querySelectorAll('.review-card').forEach(card => {
+            const originalOnclick = card.onclick;
+            card.onclick = function() {
+                const platform = this.getAttribute('data-platform');
+                if (platform) {
+                    trackClick(platform, 'review');
+                }
+                if (originalOnclick) {
+                    originalOnclick.call(this);
+                }
+            };
+        });
+
+        // Track social icon clicks
+        document.querySelectorAll('[onclick*="openLink"]').forEach(element => {
+            const originalOnclick = element.getAttribute('onclick');
+            element.onclick = function() {
+                const match = originalOnclick.match(/openLink\('([^']+)'\)/);
+                if (match && match[1]) {
+                    trackClick(match[1], 'social');
+                }
+                eval(originalOnclick);
+            };
+        });
+    });
 </script>
 
 <style>

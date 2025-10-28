@@ -121,8 +121,30 @@
                             </div>
                             <div class="ml-5 w-0 flex-1">
                                 <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Page Views</dt>
-                                    <dd class="text-lg font-medium text-gray-900">Coming Soon</dd>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Total Page Views</dt>
+                                    <dd class="text-lg font-medium text-gray-900">{{if .stats}}{{.stats.total_views}}{{else}}0{{end}}</dd>
+                                    {{if .stats}}
+                                    <dd class="text-xs text-gray-500 mt-1">{{.stats.unique_visitors}} unique visitors</dd>
+                                    {{end}}
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Link Clicks</dt>
+                                    <dd class="text-lg font-medium text-gray-900">{{if .stats}}{{.stats.total_clicks}}{{else}}0{{end}}</dd>
+                                    <dd class="text-xs text-gray-500 mt-1">Social & review links</dd>
                                 </dl>
                             </div>
                         </div>
@@ -139,35 +161,46 @@
                             </div>
                             <div class="ml-5 w-0 flex-1">
                                 <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Reviews</dt>
-                                    <dd class="text-lg font-medium text-gray-900">Coming Soon</dd>
-                                </dl>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white overflow-hidden shadow rounded-lg">
-                    <div class="p-5">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Conversions</dt>
-                                    <dd class="text-lg font-medium text-gray-900">Coming Soon</dd>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Active Reviews</dt>
+                                    <dd class="text-lg font-medium text-gray-900">{{if .stats}}{{.stats.reviews_count}}{{else}}0{{end}}</dd>
+                                    <dd class="text-xs text-gray-500 mt-1">Displayed on your page</dd>
                                 </dl>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {{if .stats}}
+            <!-- Analytics Charts -->
+            <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Views Over Time Chart -->
+                <div class="bg-white shadow rounded-lg">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">Page Views (Last 7 Days)</h3>
+                    </div>
+                    <div class="p-6">
+                        <canvas id="viewsChart" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Clicks by Platform Chart -->
+                <div class="bg-white shadow rounded-lg">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">Clicks by Platform</h3>
+                    </div>
+                    <div class="p-6">
+                        <canvas id="clicksChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            {{end}}
         </div>
     </div>
 </div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
 function generateQR(slug) {
@@ -189,5 +222,113 @@ function copyURL(slug) {
         setTimeout(() => toast.remove(), 3000);
     });
 }
+
+{{if .stats}}
+// Initialize Charts
+document.addEventListener('DOMContentLoaded', function() {
+    // Views Over Time Chart (Bar Chart)
+    const viewsData = {{.stats.views_last_7days}};
+
+    if (viewsData && viewsData.length > 0) {
+        const viewsCtx = document.getElementById('viewsChart');
+        if (viewsCtx) {
+            new Chart(viewsCtx, {
+                type: 'bar',
+                data: {
+                    labels: viewsData.map(d => d.date),
+                    datasets: [{
+                        label: 'Page Views',
+                        data: viewsData.map(d => d.count),
+                        backgroundColor: 'rgba(79, 70, 229, 0.5)',
+                        borderColor: 'rgba(79, 70, 229, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    } else {
+        // Show "No data" message
+        const viewsCanvas = document.getElementById('viewsChart');
+        if (viewsCanvas) {
+            const parent = viewsCanvas.parentElement;
+            parent.innerHTML = '<p class="text-center text-gray-500 py-8">No page views in the last 7 days</p>';
+        }
+    }
+
+    // Clicks by Platform Chart (Pie Chart)
+    const clicksData = {{.stats.clicks_by_platform}};
+
+    if (clicksData && Object.keys(clicksData).length > 0) {
+        const platforms = Object.keys(clicksData);
+        const counts = Object.values(clicksData);
+
+        const colors = [
+            'rgba(59, 130, 246, 0.8)',   // Blue
+            'rgba(16, 185, 129, 0.8)',   // Green
+            'rgba(245, 158, 11, 0.8)',   // Yellow
+            'rgba(239, 68, 68, 0.8)',    // Red
+            'rgba(139, 92, 246, 0.8)',   // Purple
+            'rgba(236, 72, 153, 0.8)',   // Pink
+            'rgba(20, 184, 166, 0.8)',   // Teal
+            'rgba(251, 146, 60, 0.8)'    // Orange
+        ];
+
+        const clicksCtx = document.getElementById('clicksChart');
+        if (clicksCtx) {
+            new Chart(clicksCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: platforms.map(p => p.charAt(0).toUpperCase() + p.slice(1)),
+                    datasets: [{
+                        data: counts,
+                        backgroundColor: colors.slice(0, platforms.length),
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    } else {
+        // Show "No data" message
+        const clicksCanvas = document.getElementById('clicksChart');
+        if (clicksCanvas) {
+            const parent = clicksCanvas.parentElement;
+            parent.innerHTML = '<p class="text-center text-gray-500 py-8">No link clicks tracked yet</p>';
+        }
+    }
+});
+{{end}}
 </script>
 {{end}}

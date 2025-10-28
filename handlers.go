@@ -2,6 +2,7 @@ package main
 
 import (
 	"auto-gbp-review/utils"
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -202,8 +203,35 @@ func (h *Handlers) Logout(c *gin.Context) {
 
 // Admin handlers
 func (h *Handlers) AdminDashboard(c *gin.Context) {
+	// Get stats from database
+	var totalMerchants, activeMerchants, totalUsers int
+
+	// Count total merchants
+	err := h.db.QueryRow("SELECT COUNT(*) FROM merchants").Scan(&totalMerchants)
+	if err != nil {
+		log.Printf("Error counting total merchants: %v", err)
+		totalMerchants = 0
+	}
+
+	// Count active merchants (is_active = true)
+	err = h.db.QueryRow("SELECT COUNT(*) FROM merchants WHERE is_active = true").Scan(&activeMerchants)
+	if err != nil {
+		log.Printf("Error counting active merchants: %v", err)
+		activeMerchants = 0
+	}
+
+	// Count total users from auth.users
+	err = h.db.QueryRow("SELECT COUNT(*) FROM auth.users WHERE deleted_at IS NULL").Scan(&totalUsers)
+	if err != nil {
+		log.Printf("Error counting total users: %v", err)
+		totalUsers = 0
+	}
+
 	renderPage(c, "templates/layouts/base.html", "templates/admin/dashboard.html", gin.H{
-		"title": "Admin Dashboard",
+		"title":           "Admin Dashboard",
+		"totalMerchants":  totalMerchants,
+		"activeMerchants": activeMerchants,
+		"totalUsers":      totalUsers,
 	})
 }
 
@@ -222,6 +250,95 @@ func (h *Handlers) AdminMerchantsList(c *gin.Context) {
 	})
 }
 
+func (h *Handlers) AdminAuditLogs(c *gin.Context) {
+	// Get filter parameters
+	filterAction := c.Query("action")
+	filterUserEmail := c.Query("user_email")
+	filterTargetID := c.Query("target_id")
+
+	// Build query with filters
+	query := `
+		SELECT id, user_id, user_email, action, target_type, target_id,
+		       details, ip_address, user_agent, created_at
+		FROM audit_logs
+		WHERE 1=1
+	`
+	args := []interface{}{}
+	argCount := 1
+
+	if filterAction != "" {
+		query += fmt.Sprintf(" AND action = $%d", argCount)
+		args = append(args, filterAction)
+		argCount++
+	}
+
+	if filterUserEmail != "" {
+		query += fmt.Sprintf(" AND user_email ILIKE $%d", argCount)
+		args = append(args, "%"+filterUserEmail+"%")
+		argCount++
+	}
+
+	if filterTargetID != "" {
+		query += fmt.Sprintf(" AND target_id = $%d", argCount)
+		args = append(args, filterTargetID)
+		argCount++
+	}
+
+	query += " ORDER BY created_at DESC LIMIT 100"
+
+	// Execute query
+	rows, err := h.db.Query(query, args...)
+	if err != nil {
+		log.Printf("Error fetching audit logs: %v", err)
+		renderPage(c, "templates/layouts/base.html", "templates/error.html", gin.H{
+			"error": "Failed to load audit logs",
+		})
+		return
+	}
+	defer rows.Close()
+
+	var logs []AuditLog
+	for rows.Next() {
+		var log AuditLog
+		var detailsJSON []byte
+		err := rows.Scan(&log.ID, &log.UserID, &log.UserEmail, &log.Action, &log.TargetType,
+			&log.TargetID, &detailsJSON, &log.IPAddress, &log.UserAgent, &log.CreatedAt)
+		if err != nil {
+			log := log // Shadow to avoid confusion
+			_ = log
+			continue
+		}
+		// Format JSON for display
+		var prettyJSON bytes.Buffer
+		if err := json.Indent(&prettyJSON, detailsJSON, "", "  "); err == nil {
+			log.DetailsJSON = prettyJSON.String()
+		} else {
+			log.DetailsJSON = string(detailsJSON)
+		}
+		logs = append(logs, log)
+	}
+
+	// Get stats
+	var totalLogs, createdCount, modifiedCount, last24hCount int
+
+	h.db.QueryRow("SELECT COUNT(*) FROM audit_logs").Scan(&totalLogs)
+	h.db.QueryRow("SELECT COUNT(*) FROM audit_logs WHERE action LIKE '%_created'").Scan(&createdCount)
+	h.db.QueryRow("SELECT COUNT(*) FROM audit_logs WHERE action LIKE '%_enabled' OR action LIKE '%_disabled' OR action LIKE '%_updated'").Scan(&modifiedCount)
+	h.db.QueryRow("SELECT COUNT(*) FROM audit_logs WHERE created_at > NOW() - INTERVAL '24 hours'").Scan(&last24hCount)
+
+	renderPage(c, "templates/layouts/base.html", "templates/admin/audit_logs.html", gin.H{
+		"title":           "Audit Logs",
+		"logs":            logs,
+		"totalLogs":       totalLogs,
+		"createdCount":    createdCount,
+		"modifiedCount":   modifiedCount,
+		"last24hCount":    last24hCount,
+		"filterAction":    filterAction,
+		"filterUserEmail": filterUserEmail,
+		"filterTargetID":  filterTargetID,
+	})
+}
+
 func (h *Handlers) AdminMerchantForm(c *gin.Context) {
 	renderPage(c, "templates/layouts/base.html", "templates/admin/merchant_form.html", gin.H{
 		"title": "Add New Merchant",
@@ -232,20 +349,39 @@ func (h *Handlers) AdminCreateMerchant(c *gin.Context) {
 	businessName := c.PostForm("business_name")
 	slug := c.PostForm("slug")
 	userEmail := c.PostForm("user_email")
+	password := c.PostForm("password")
 
-	// Get user ID by email
-	user, err := h.getUserByEmail(userEmail)
-	if err != nil {
+	// Check if user already exists
+	existingUserID, err := h.getAuthUserByEmail(userEmail)
+
+	var authUserID string
+
+	if err == nil && existingUserID != "" {
+		// User already exists - show error
 		renderPage(c, "templates/layouts/base.html", "templates/admin/merchant_form.html", gin.H{
 			"title": "Add New Merchant",
-			"error": "User not found",
+			"error": "User with this email already exists. Please use a different email.",
 		})
 		return
 	}
 
-	// Create merchant
-	merchantID, err := h.createMerchant(user.ID, businessName, slug)
+	// User doesn't exist - create new user AND role in one transaction
+	authUserID, err = h.createSupabaseUserWithRole(userEmail, password, "merchant")
 	if err != nil {
+		log.Printf("Failed to create user: %v", err)
+		renderPage(c, "templates/layouts/base.html", "templates/admin/merchant_form.html", gin.H{
+			"title": "Add New Merchant",
+			"error": "Failed to create user account: " + err.Error(),
+		})
+		return
+	}
+
+	log.Printf("Successfully created user: %s with ID: %s", userEmail, authUserID)
+
+	// Create merchant with auth_user_id
+	merchantID, err := h.createMerchantWithAuthUserID(authUserID, businessName, slug)
+	if err != nil {
+		log.Printf("Failed to create merchant: %v", err)
 		renderPage(c, "templates/layouts/base.html", "templates/admin/merchant_form.html", gin.H{
 			"title": "Add New Merchant",
 			"error": "Failed to create merchant: " + err.Error(),
@@ -258,6 +394,16 @@ func (h *Handlers) AdminCreateMerchant(c *gin.Context) {
 	if err != nil {
 		log.Printf("Failed to create merchant details: %v", err)
 	}
+
+	log.Printf("Successfully created merchant ID: %d for user: %s", merchantID, userEmail)
+
+	// Log audit event
+	h.logAuditEvent(c, "merchant_created", "merchant", fmt.Sprintf("%d", merchantID), map[string]interface{}{
+		"business_name": businessName,
+		"slug":          slug,
+		"user_email":    userEmail,
+		"auth_user_id":  authUserID,
+	})
 
 	c.Redirect(http.StatusFound, "/admin/merchants")
 }
@@ -381,10 +527,98 @@ func (h *Handlers) MerchantDashboard(c *gin.Context) {
 		return
 	}
 
+	// Get analytics stats for first merchant (most users have one business)
+	var stats map[string]interface{}
+	if len(merchants) > 0 {
+		merchantID := merchants[0].ID
+		stats = h.getMerchantStats(merchantID)
+	} else {
+		stats = map[string]interface{}{
+			"total_views":       0,
+			"total_clicks":      0,
+			"reviews_count":     0,
+			"views_last_7days":  []int{},
+			"clicks_by_platform": map[string]int{},
+		}
+	}
+
 	renderPage(c, "templates/layouts/base.html", "templates/merchant_dashboard.html", gin.H{
 		"title":     "Dashboard",
 		"merchants": merchants,
+		"stats":     stats,
 	})
+}
+
+// getMerchantStats fetches analytics statistics for a merchant
+func (h *Handlers) getMerchantStats(merchantID int) map[string]interface{} {
+	stats := make(map[string]interface{})
+
+	// Total page views
+	var totalViews int
+	h.db.QueryRow("SELECT COUNT(*) FROM page_views WHERE merchant_id = $1", merchantID).Scan(&totalViews)
+	stats["total_views"] = totalViews
+
+	// Total link clicks
+	var totalClicks int
+	h.db.QueryRow("SELECT COUNT(*) FROM link_clicks WHERE merchant_id = $1", merchantID).Scan(&totalClicks)
+	stats["total_clicks"] = totalClicks
+
+	// Active reviews count
+	var reviewsCount int
+	h.db.QueryRow("SELECT COUNT(*) FROM merchant_reviews WHERE merchant_id = $1 AND is_active = true", merchantID).Scan(&reviewsCount)
+	stats["reviews_count"] = reviewsCount
+
+	// Views in last 7 days (for chart)
+	rows, err := h.db.Query(`
+		SELECT DATE(created_at) as date, COUNT(*) as count
+		FROM page_views
+		WHERE merchant_id = $1 AND created_at > NOW() - INTERVAL '7 days'
+		GROUP BY DATE(created_at)
+		ORDER BY date
+	`, merchantID)
+	if err == nil {
+		defer rows.Close()
+		viewsLast7Days := make([]map[string]interface{}, 0)
+		for rows.Next() {
+			var date time.Time
+			var count int
+			if err := rows.Scan(&date, &count); err == nil {
+				viewsLast7Days = append(viewsLast7Days, map[string]interface{}{
+					"date":  date.Format("Jan 2"),
+					"count": count,
+				})
+			}
+		}
+		stats["views_last_7days"] = viewsLast7Days
+	}
+
+	// Clicks by platform (for pie chart)
+	clicksRows, err := h.db.Query(`
+		SELECT platform, COUNT(*) as count
+		FROM link_clicks
+		WHERE merchant_id = $1
+		GROUP BY platform
+		ORDER BY count DESC
+	`, merchantID)
+	if err == nil {
+		defer clicksRows.Close()
+		clicksByPlatform := make(map[string]int)
+		for clicksRows.Next() {
+			var platform string
+			var count int
+			if err := clicksRows.Scan(&platform, &count); err == nil {
+				clicksByPlatform[platform] = count
+			}
+		}
+		stats["clicks_by_platform"] = clicksByPlatform
+	}
+
+	// Unique visitors (based on distinct IP addresses)
+	var uniqueVisitors int
+	h.db.QueryRow("SELECT COUNT(DISTINCT ip_address) FROM page_views WHERE merchant_id = $1", merchantID).Scan(&uniqueVisitors)
+	stats["unique_visitors"] = uniqueVisitors
+
+	return stats
 }
 
 func (h *Handlers) MerchantProfile(c *gin.Context) {
@@ -588,11 +822,34 @@ func (h *Handlers) ToggleMerchantStatus(c *gin.Context) {
 		return
 	}
 
+	// Get merchant details before toggling for audit log
+	merchant, err := h.getMerchantByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Merchant not found"})
+		return
+	}
+	oldStatus := merchant.IsActive
+
+	// Toggle status
 	err = h.toggleMerchantStatus(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to toggle status"})
 		return
 	}
+
+	// Get new status
+	newStatus := !oldStatus
+
+	// Log audit event
+	action := "merchant_disabled"
+	if newStatus {
+		action = "merchant_enabled"
+	}
+	h.logAuditEvent(c, action, "merchant", idStr, map[string]interface{}{
+		"business_name": merchant.BusinessName,
+		"old_status":    oldStatus,
+		"new_status":    newStatus,
+	})
 
 	c.JSON(http.StatusOK, gin.H{"status": "toggled"})
 }
@@ -613,12 +870,12 @@ type User struct {
 
 type Merchant struct {
 	ID           int       `json:"id"`
-	UserID       int       `json:"user_id"`
+	AuthUserID   string    `json:"auth_user_id"` // UUID from auth.users
 	BusinessName string    `json:"business_name"`
 	Slug         string    `json:"slug"`
 	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
-	UserEmail    string    `json:"user_email,omitempty"` // For admin views
+	UserEmail    string    `json:"user_email,omitempty"` // For admin views (joined from auth.users)
 }
 
 type MerchantDetails struct {
@@ -651,6 +908,20 @@ type Review struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+type AuditLog struct {
+	ID          int64     `json:"id"`
+	UserID      string    `json:"user_id"`
+	UserEmail   string    `json:"user_email"`
+	Action      string    `json:"action"`
+	TargetType  string    `json:"target_type"`
+	TargetID    string    `json:"target_id"`
+	Details     string    `json:"details"`      // JSON string
+	DetailsJSON string    `json:"details_json"` // Formatted for display
+	IPAddress   string    `json:"ip_address"`
+	UserAgent   string    `json:"user_agent"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 // Database operations for merchants
 func (h *Handlers) createMerchant(userID int, businessName, slug string) (int, error) {
 	var merchantID int
@@ -661,9 +932,8 @@ func (h *Handlers) createMerchant(userID int, businessName, slug string) (int, e
 
 func (h *Handlers) getMerchantByID(id int) (*Merchant, error) {
 	merchant := &Merchant{}
-	err := h.db.QueryRow("SELECT id, business_name, slug, is_active, created_at FROM merchants WHERE id = $1", id).
-		Scan(&merchant.ID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt)
-	merchant.UserID = 0 // Set default since we no longer use this field
+	err := h.db.QueryRow("SELECT id, auth_user_id, business_name, slug, is_active, created_at FROM merchants WHERE id = $1", id).
+		Scan(&merchant.ID, &merchant.AuthUserID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt)
 	return merchant, err
 }
 
@@ -711,6 +981,179 @@ func (h *Handlers) getUserByEmail(email string) (*User, error) {
 	return user, err
 }
 
+// getAuthUserByEmail gets user from auth.users table
+func (h *Handlers) getAuthUserByEmail(email string) (string, error) {
+	var userID string
+	err := h.db.QueryRow("SELECT id FROM auth.users WHERE email = $1", email).Scan(&userID)
+	return userID, err
+}
+
+// createSupabaseUserWithRole creates a new user via Supabase Admin API and sets their role
+func (h *Handlers) createSupabaseUserWithRole(email, password, role string) (string, error) {
+	supabaseURL := GetSupabaseURL()
+	serviceRoleKey := GetSupabaseServiceKey()
+
+	log.Printf("Creating Supabase user for email: %s with role: %s", email, role)
+	log.Printf("Supabase URL: %s", supabaseURL)
+
+	// Prepare request body - don't set user_metadata to avoid trigger conflict
+	requestBody := map[string]interface{}{
+		"email":         email,
+		"password":      password,
+		"email_confirm": true, // Auto-confirm email
+	}
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	log.Printf("Request body: %s", string(jsonData))
+
+	// Make HTTP request to Supabase Admin API
+	url := fmt.Sprintf("%s/auth/v1/admin/users", supabaseURL)
+	log.Printf("Making request to: %s", url)
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(string(jsonData)))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("apikey", serviceRoleKey)
+	req.Header.Set("Authorization", "Bearer "+serviceRoleKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse response
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Printf("Failed to decode response body, status: %d", resp.StatusCode)
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	log.Printf("Response status: %d", resp.StatusCode)
+	log.Printf("Response body: %+v", result)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		errorMsg := "Unknown error"
+		if msg, ok := result["message"].(string); ok {
+			errorMsg = msg
+		} else if msg, ok := result["error"].(string); ok {
+			errorMsg = msg
+		} else if msg, ok := result["msg"].(string); ok {
+			errorMsg = msg
+		}
+		log.Printf("API error - Status: %d, Message: %s, Full response: %+v", resp.StatusCode, errorMsg, result)
+		return "", fmt.Errorf("API error (status %d): %s", resp.StatusCode, errorMsg)
+	}
+
+	// Extract user ID from response
+	userID, ok := result["id"].(string)
+	if !ok {
+		log.Printf("User ID not found in response: %+v", result)
+		return "", fmt.Errorf("user ID not found in response")
+	}
+
+	log.Printf("Successfully created user with ID: %s, now creating role entry", userID)
+
+	// Manually insert into user_roles table (bypassing trigger)
+	_, err = h.db.Exec(`
+		INSERT INTO public.user_roles (user_id, role)
+		VALUES ($1, $2)
+		ON CONFLICT (user_id) DO UPDATE SET role = $2
+	`, userID, role)
+
+	if err != nil {
+		log.Printf("Failed to create user_roles entry: %v", err)
+		return "", fmt.Errorf("user created but failed to set role: %w", err)
+	}
+
+	log.Printf("Successfully created user_roles entry for user: %s", userID)
+	return userID, nil
+}
+
+// createSupabaseUser creates a new user via Supabase Admin API
+func (h *Handlers) createSupabaseUser(email, password string) (string, error) {
+	supabaseURL := GetSupabaseURL()
+	serviceRoleKey := GetSupabaseServiceKey()
+
+	log.Printf("Creating Supabase user for email: %s", email)
+	log.Printf("Supabase URL: %s", supabaseURL)
+
+	// Prepare request body
+	requestBody := map[string]interface{}{
+		"email":         email,
+		"password":      password,
+		"email_confirm": true, // Auto-confirm email
+	}
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	log.Printf("Request body: %s", string(jsonData))
+
+	// Make HTTP request to Supabase Admin API
+	url := fmt.Sprintf("%s/auth/v1/admin/users", supabaseURL)
+	log.Printf("Making request to: %s", url)
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(string(jsonData)))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("apikey", serviceRoleKey)
+	req.Header.Set("Authorization", "Bearer "+serviceRoleKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse response
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Printf("Failed to decode response body, status: %d", resp.StatusCode)
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	log.Printf("Response status: %d", resp.StatusCode)
+	log.Printf("Response body: %+v", result)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		errorMsg := "Unknown error"
+		if msg, ok := result["message"].(string); ok {
+			errorMsg = msg
+		} else if msg, ok := result["error"].(string); ok {
+			errorMsg = msg
+		} else if msg, ok := result["msg"].(string); ok {
+			errorMsg = msg
+		}
+		log.Printf("API error - Status: %d, Message: %s, Full response: %+v", resp.StatusCode, errorMsg, result)
+		return "", fmt.Errorf("API error (status %d): %s", resp.StatusCode, errorMsg)
+	}
+
+	// Extract user ID from response
+	userID, ok := result["id"].(string)
+	if !ok {
+		log.Printf("User ID not found in response: %+v", result)
+		return "", fmt.Errorf("user ID not found in response")
+	}
+
+	log.Printf("Successfully created user with ID: %s", userID)
+	return userID, nil
+}
+
 func (h *Handlers) createUser(email, passwordHash, role string) (int, error) {
 	var userID int
 	err := h.db.QueryRow("INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id",
@@ -720,9 +1163,8 @@ func (h *Handlers) createUser(email, passwordHash, role string) (int, error) {
 
 func (h *Handlers) getMerchantBySlug(slug string) (*Merchant, error) {
 	merchant := &Merchant{}
-	err := h.db.QueryRow("SELECT id, business_name, slug, is_active, created_at FROM merchants WHERE slug = $1 AND is_active = true", slug).
-		Scan(&merchant.ID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt)
-	merchant.UserID = 0 // Set default since we no longer use this field
+	err := h.db.QueryRow("SELECT id, auth_user_id, business_name, slug, is_active, created_at FROM merchants WHERE slug = $1 AND is_active = true", slug).
+		Scan(&merchant.ID, &merchant.AuthUserID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt)
 	return merchant, err
 }
 
@@ -754,7 +1196,7 @@ func (h *Handlers) getMerchantDetails(merchantID int) (*MerchantDetails, error) 
 }
 
 func (h *Handlers) getAllMerchants() ([]Merchant, error) {
-	rows, err := h.db.Query("SELECT id, business_name, slug, is_active, created_at FROM merchants ORDER BY created_at DESC")
+	rows, err := h.db.Query("SELECT id, auth_user_id, business_name, slug, is_active, created_at FROM merchants ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -763,18 +1205,21 @@ func (h *Handlers) getAllMerchants() ([]Merchant, error) {
 	var merchants []Merchant
 	for rows.Next() {
 		var merchant Merchant
-		if err := rows.Scan(&merchant.ID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt); err != nil {
+		if err := rows.Scan(&merchant.ID, &merchant.AuthUserID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt); err != nil {
 			return nil, err
 		}
-		merchant.UserID = 0 // Set default since we no longer use this field
 		merchants = append(merchants, merchant)
 	}
 	return merchants, nil
 }
 
 func (h *Handlers) getAllMerchantsWithDetails() ([]Merchant, error) {
-	rows, err := h.db.Query(`SELECT m.id, m.user_id, m.business_name, m.slug, m.is_active, m.created_at, u.email 
-		FROM merchants m JOIN users u ON m.user_id = u.id ORDER BY m.created_at DESC`)
+	rows, err := h.db.Query(`
+		SELECT m.id, m.auth_user_id, m.business_name, m.slug, m.is_active, m.created_at, u.email
+		FROM merchants m
+		LEFT JOIN auth.users u ON m.auth_user_id = u.id
+		ORDER BY m.created_at DESC
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -783,7 +1228,7 @@ func (h *Handlers) getAllMerchantsWithDetails() ([]Merchant, error) {
 	var merchants []Merchant
 	for rows.Next() {
 		var merchant Merchant
-		if err := rows.Scan(&merchant.ID, &merchant.UserID, &merchant.BusinessName, &merchant.Slug,
+		if err := rows.Scan(&merchant.ID, &merchant.AuthUserID, &merchant.BusinessName, &merchant.Slug,
 			&merchant.IsActive, &merchant.CreatedAt, &merchant.UserEmail); err != nil {
 			return nil, err
 		}
@@ -808,7 +1253,7 @@ func (h *Handlers) createMerchantWithAuthUserID(authUserID, businessName, slug s
 
 func (h *Handlers) getMerchantsByAuthUserID(authUserID string) ([]Merchant, error) {
 	log.Printf("getMerchantsByAuthUserID: Querying for auth_user_id = %s", authUserID)
-	rows, err := h.db.Query("SELECT id, business_name, slug, is_active, created_at FROM merchants WHERE auth_user_id = $1 ORDER BY created_at DESC", authUserID)
+	rows, err := h.db.Query("SELECT id, auth_user_id, business_name, slug, is_active, created_at FROM merchants WHERE auth_user_id = $1 ORDER BY created_at DESC", authUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -817,10 +1262,9 @@ func (h *Handlers) getMerchantsByAuthUserID(authUserID string) ([]Merchant, erro
 	var merchants []Merchant
 	for rows.Next() {
 		var merchant Merchant
-		if err := rows.Scan(&merchant.ID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt); err != nil {
+		if err := rows.Scan(&merchant.ID, &merchant.AuthUserID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt); err != nil {
 			return nil, err
 		}
-		merchant.UserID = 0 // Set default since we no longer use this field
 		merchants = append(merchants, merchant)
 	}
 	return merchants, nil
@@ -1080,4 +1524,116 @@ func (h *Handlers) GetReviewModal(c *gin.Context) {
 
 	c.Header("Content-Type", "text/html")
 	c.String(http.StatusOK, html)
+}
+
+// logAuditEvent logs an admin action to the audit_logs table
+func (h *Handlers) logAuditEvent(c *gin.Context, action, targetType, targetID string, details map[string]interface{}) {
+	// Get admin user info from context (set by middleware)
+	userID, _ := c.Get("user_id")
+	userEmail, _ := c.Get("user_email")
+
+	// Get IP address
+	ipAddress := c.ClientIP()
+
+	// Get user agent
+	userAgent := c.GetHeader("User-Agent")
+
+	// Convert details to JSONB
+	detailsJSON, err := json.Marshal(details)
+	if err != nil {
+		log.Printf("Failed to marshal audit details: %v", err)
+		detailsJSON = []byte("{}")
+	}
+
+	// Insert audit log
+	_, err = h.db.Exec(`
+		INSERT INTO audit_logs (user_id, user_email, action, target_type, target_id, details, ip_address, user_agent)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, userID, userEmail, action, targetType, targetID, detailsJSON, ipAddress, userAgent)
+
+	if err != nil {
+		log.Printf("Failed to create audit log: %v", err)
+		// Don't fail the request if audit logging fails
+	} else {
+		log.Printf("Audit log created: %s by %s on %s:%s", action, userEmail, targetType, targetID)
+	}
+}
+
+// Analytics tracking endpoints
+
+// TrackPageView logs a page view for analytics
+func (h *Handlers) TrackPageView(c *gin.Context) {
+	merchantIDStr := c.Query("merchant_id")
+	if merchantIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "merchant_id required"})
+		return
+	}
+
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid merchant_id"})
+		return
+	}
+
+	// Get tracking data
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+	referrer := c.GetHeader("Referer")
+
+	// Insert page view
+	_, err = h.db.Exec(`
+		INSERT INTO page_views (merchant_id, ip_address, user_agent, referrer)
+		VALUES ($1, $2, $3, $4)
+	`, merchantID, ipAddress, userAgent, referrer)
+
+	if err != nil {
+		log.Printf("Failed to log page view: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to track view"})
+		return
+	}
+
+	log.Printf("Page view tracked: merchant_id=%d, ip=%s", merchantID, ipAddress)
+	c.JSON(http.StatusOK, gin.H{"status": "tracked"})
+}
+
+// TrackLinkClick logs a link click for analytics
+func (h *Handlers) TrackLinkClick(c *gin.Context) {
+	merchantIDStr := c.Query("merchant_id")
+	platform := c.Query("platform")
+	linkType := c.Query("type")
+
+	if merchantIDStr == "" || platform == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "merchant_id and platform required"})
+		return
+	}
+
+	merchantID, err := strconv.Atoi(merchantIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid merchant_id"})
+		return
+	}
+
+	// Default link type to 'social' if not specified
+	if linkType == "" {
+		linkType = "social"
+	}
+
+	// Get tracking data
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+
+	// Insert link click
+	_, err = h.db.Exec(`
+		INSERT INTO link_clicks (merchant_id, platform, link_type, ip_address, user_agent)
+		VALUES ($1, $2, $3, $4, $5)
+	`, merchantID, platform, linkType, ipAddress, userAgent)
+
+	if err != nil {
+		log.Printf("Failed to log link click: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to track click"})
+		return
+	}
+
+	log.Printf("Link click tracked: merchant_id=%d, platform=%s, type=%s", merchantID, platform, linkType)
+	c.JSON(http.StatusOK, gin.H{"status": "tracked"})
 }

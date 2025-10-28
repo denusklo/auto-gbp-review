@@ -28,3 +28,13 @@ func InitSupabase() error {
 func GetSupabaseClient() *supa.Client {
 	return supabaseClient
 }
+
+// GetSupabaseURL returns the Supabase project URL from environment
+func GetSupabaseURL() string {
+	return os.Getenv("SUPABASE_URL")
+}
+
+// GetSupabaseServiceKey returns the Supabase service role key from environment
+func GetSupabaseServiceKey() string {
+	return os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+}

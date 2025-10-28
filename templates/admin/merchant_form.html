@@ -1,0 +1,91 @@
+{{define "title"}}Add New Merchant{{end}}
+
+{{define "content"}}
+<div class="min-h-screen bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <a href="/admin/merchants" class="text-sm text-gray-500 hover:text-gray-700">← Back to Merchants</a>
+                    <h1 class="text-xl font-semibold text-gray-900">Add New Merchant</h1>
+                </div>
+                <div class="flex items-center">
+                    <form action="/logout" method="POST" class="inline">
+                        <button type="submit" class="text-sm text-red-600 hover:text-red-800">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-3xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Merchant Information</h3>
+                </div>
+                <form action="/admin/merchants" method="POST" class="p-6 space-y-6">
+                    {{if .error}}
+                    <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                        <div class="text-sm text-red-700">{{.error}}</div>
+                    </div>
+                    {{end}}
+
+                    <div>
+                        <label for="user_email" class="block text-sm font-medium text-gray-700">User Email</label>
+                        <input type="email" name="user_email" id="user_email" required
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-sm text-gray-500">If email doesn't exist, a new account will be created</p>
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" name="password" id="password" required
+                               minlength="6"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-sm text-gray-500">Temporary password for new user (min 6 characters). User should change this after first login.</p>
+                    </div>
+
+                    <div>
+                        <label for="business_name" class="block text-sm font-medium text-gray-700">Business Name</label>
+                        <input type="text" name="business_name" id="business_name" required
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label for="slug" class="block text-sm font-medium text-gray-700">Slug</label>
+                        <input type="text" name="slug" id="slug" required 
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                               pattern="[a-z0-9-]+" title="Only lowercase letters, numbers, and hyphens allowed">
+                        <p class="mt-1 text-sm text-gray-500">URL-friendly identifier (e.g., "my-business-name")</p>
+                    </div>
+
+                    <div class="flex justify-end space-x-3">
+                        <a href="/admin/merchants" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </a>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium">
+                            Create Merchant
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-generate slug from business name
+document.getElementById('business_name').addEventListener('input', function(e) {
+    const businessName = e.target.value;
+    const slug = businessName.toLowerCase()
+        .replace(/[^a-z0-9 ]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    document.getElementById('slug').value = slug;
+});
+</script>
+{{end}}

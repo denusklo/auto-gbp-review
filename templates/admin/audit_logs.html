@@ -1,0 +1,221 @@
+<!-- templates/admin/audit_logs.html -->
+{{define "title"}}Audit Logs{{end}}
+
+{{define "content"}}
+<div class="min-h-screen bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <h1 class="text-xl font-semibold text-gray-900">Audit Logs</h1>
+                    <a href="/admin" class="text-sm text-gray-500 hover:text-gray-700">← Back to Dashboard</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-500">Welcome, Admin</span>
+                    <form action="/logout" method="POST" class="inline">
+                        <button type="submit" class="text-sm text-red-600 hover:text-red-800">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Stats Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Total Logs</dt>
+                                    <dd class="text-lg font-semibold text-gray-900">{{.totalLogs}}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Created</dt>
+                                    <dd class="text-lg font-semibold text-gray-900">{{.createdCount}}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Modified</dt>
+                                    <dd class="text-lg font-semibold text-gray-900">{{.modifiedCount}}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Last 24h</dt>
+                                    <dd class="text-lg font-semibold text-gray-900">{{.last24hCount}}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white shadow rounded-lg mb-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Filters</h3>
+                </div>
+                <div class="p-6">
+                    <form method="GET" action="/admin/audit-logs" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label for="action" class="block text-sm font-medium text-gray-700">Action</label>
+                            <select name="action" id="action" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                <option value="">All Actions</option>
+                                <option value="merchant_created" {{if eq .filterAction "merchant_created"}}selected{{end}}>Merchant Created</option>
+                                <option value="merchant_enabled" {{if eq .filterAction "merchant_enabled"}}selected{{end}}>Merchant Enabled</option>
+                                <option value="merchant_disabled" {{if eq .filterAction "merchant_disabled"}}selected{{end}}>Merchant Disabled</option>
+                                <option value="merchant_updated" {{if eq .filterAction "merchant_updated"}}selected{{end}}>Merchant Updated</option>
+                                <option value="merchant_deleted" {{if eq .filterAction "merchant_deleted"}}selected{{end}}>Merchant Deleted</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="user_email" class="block text-sm font-medium text-gray-700">User Email</label>
+                            <input type="text" name="user_email" id="user_email" value="{{.filterUserEmail}}" placeholder="admin@example.com" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label for="target_id" class="block text-sm font-medium text-gray-700">Target ID</label>
+                            <input type="text" name="target_id" id="target_id" value="{{.filterTargetID}}" placeholder="123" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                                </svg>
+                                Apply Filters
+                            </button>
+                        </div>
+                    </form>
+                    {{if or .filterAction .filterUserEmail .filterTargetID}}
+                    <div class="mt-3">
+                        <a href="/admin/audit-logs" class="text-sm text-indigo-600 hover:text-indigo-800">Clear all filters</a>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+
+            <!-- Audit Logs Table -->
+            <div class="bg-white shadow rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Recent Activity</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {{if .logs}}
+                                {{range .logs}}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {{.CreatedAt.Format "2006-01-02 15:04:05"}}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{.UserEmail}}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        {{if eq .Action "merchant_created"}}
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Created</span>
+                                        {{else if eq .Action "merchant_enabled"}}
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Enabled</span>
+                                        {{else if eq .Action "merchant_disabled"}}
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Disabled</span>
+                                        {{else if eq .Action "merchant_updated"}}
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">Updated</span>
+                                        {{else if eq .Action "merchant_deleted"}}
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Deleted</span>
+                                        {{else}}
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{{.Action}}</span>
+                                        {{end}}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{.TargetType}} #{{.TargetID}}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">
+                                        <details class="cursor-pointer">
+                                            <summary class="text-indigo-600 hover:text-indigo-800">View details</summary>
+                                            <pre class="mt-2 text-xs bg-gray-50 p-2 rounded overflow-x-auto">{{.DetailsJSON}}</pre>
+                                        </details>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{.IPAddress}}
+                                    </td>
+                                </tr>
+                                {{end}}
+                            {{else}}
+                                <tr>
+                                    <td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        <p class="mt-2">No audit logs found</p>
+                                        {{if or .filterAction .filterUserEmail .filterTargetID}}
+                                        <a href="/admin/audit-logs" class="mt-2 inline-block text-indigo-600 hover:text-indigo-800">Clear filters</a>
+                                        {{end}}
+                                    </td>
+                                </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}

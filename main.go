@@ -113,6 +113,7 @@ func InitRoutes(router *gin.Engine, db *Database) {
 		admin.GET("/merchants/:id/edit", handlers.AdminEditMerchant)
 		admin.POST("/merchants/:id/update", handlers.AdminUpdateMerchant) // Changed from PUT to POST
 		admin.POST("/merchants/:id/delete", handlers.AdminDeleteMerchant) // Changed from DELETE to POST
+		admin.GET("/audit-logs", handlers.AdminAuditLogs)
 	}
 
 	// Merchant routes (protected)
@@ -135,11 +136,20 @@ func InitRoutes(router *gin.Engine, db *Database) {
 	// API routes for HTMX
 	api := router.Group("/api")
 	{
-		api.POST("/merchants/:id/toggle-status", handlers.ToggleMerchantStatus)
+		// Admin-only API routes
+		adminAPI := api.Group("")
+		adminAPI.Use(SupabaseAuthMiddleware("admin"))
+		{
+			adminAPI.POST("/merchants/:id/toggle-status", handlers.ToggleMerchantStatus)
+		}
 
 		// Public API for reviews data
 		api.GET("/reviews/data/:merchantId", handlers.GetReviewsData)
 		api.GET("/reviews/modal/:merchantId/:platform", handlers.GetReviewModal)
+
+		// Public API for analytics tracking
+		api.GET("/track/view", handlers.TrackPageView)
+		api.GET("/track/click", handlers.TrackLinkClick)
 
 		// Review routes (protected)
 		reviewsAPI := api.Group("/reviews")
