@@ -241,9 +241,14 @@ function viewDemo() {
 }
 
 // Allow Enter key to trigger demo
-document.getElementById('demo-input').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        viewDemo();
+document.addEventListener('DOMContentLoaded', function() {
+    const demoInput = document.getElementById('demo-input');
+    if (demoInput) {
+        demoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                viewDemo();
+            }
+        });
     }
 });
 
@@ -256,5 +261,119 @@ document.addEventListener('click', function(event) {
         mobileMenu.classList.add('hidden');
     }
 });
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Debug: Log the current URL and hash
+        console.log('Auth handler loaded');
+        console.log('Current URL:', window.location.href);
+        console.log('Current hash:', window.location.hash);
+
+        // Check if we have auth tokens in URL hash (from Supabase email links)
+        const hash = window.location.hash.substring(1);
+
+        if (hash) {
+            console.log('Hash detected:', hash);
+            console.log('Contains access_token:', hash.includes('access_token'));
+            console.log('Contains type=signup:', hash.includes('type=signup'));
+            console.log('Contains type=recovery:', hash.includes('type=recovery'));
+        }
+
+        if (hash && (hash.includes('access_token') || hash.includes('type=signup') || hash.includes('type=recovery'))) {
+            console.log('Processing auth redirect...');
+
+            const params = new URLSearchParams(hash);
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+            const type = params.get('type');
+            const tokenType = params.get('token_type');
+
+            console.log('Parsed parameters:', {
+                accessToken: accessToken ? 'PRESENT' : 'MISSING',
+                refreshToken: refreshToken ? 'PRESENT' : 'MISSING',
+                type: type,
+                tokenType: tokenType
+            });
+
+            if (accessToken && type === 'signup' && tokenType === 'bearer') {
+                console.log('Processing email verification...');
+
+                // Email verification - save tokens and redirect to dashboard
+                document.cookie = `sb_access_token=${accessToken}; path=/; max-age=3600${window.location.protocol === 'https:' ? '; secure' : ''}; samesite=strict`;
+                if (refreshToken) {
+                    document.cookie = `sb_refresh_token=${refreshToken}; path=/; max-age=604800${window.location.protocol === 'https:' ? '; secure' : ''}; samesite=strict`;
+                }
+
+                console.log('Cookies saved, showing success message...');
+
+                // Show success message
+                showToast('Email verified successfully! Redirecting...', 'success');
+
+                // Clean URL and redirect to dashboard
+                window.history.replaceState({}, document.title, window.location.pathname);
+                setTimeout(() => {
+                    console.log('Redirecting to dashboard...');
+                    window.location.href = '/dashboard';
+                }, 1500);
+
+            } else if (type === 'recovery' && tokenType === 'bearer') {
+                console.log('Processing password recovery...');
+                // Password recovery - redirect to reset password page
+                console.log('Redirecting to reset password page...');
+                window.location.href = `/reset-password${window.location.hash}`;
+            } else {
+                console.log('Unknown auth type or missing parameters');
+                console.log('Full params:', Object.fromEntries(params.entries()));
+            }
+        } else {
+            console.log('No auth tokens detected in URL');
+        }
+    });
+
+    // Toast notification function
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast bg-white rounded-lg shadow-lg p-4 mb-4 min-w-[300px] border-l-4 ${
+            type === 'success' ? 'border-green-500' :
+            type === 'error' ? 'border-red-500' :
+            type === 'warning' ? 'border-yellow-500' :
+            'border-blue-500'
+        }`;
+
+        const icon = type === 'success' ? 'fa-check-circle' :
+                        type === 'error' ? 'fa-exclamation-circle' :
+                        type === 'warning' ? 'fa-exclamation-triangle' :
+                        'fa-info-circle';
+
+        const iconColor = type === 'success' ? 'text-green-500' :
+                        type === 'error' ? 'text-red-500' :
+                        type === 'warning' ? 'text-yellow-500' :
+                        'text-blue-500';
+
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas ${icon} ${iconColor} mr-3 text-xl"></i>
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">${message}</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-3 text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(toast);
+
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 5000);
+    }
+
+    // Make showToast globally available
+    window.showToast = showToast;
 </script>
 {{end}}

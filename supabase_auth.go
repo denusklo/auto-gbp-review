@@ -360,7 +360,6 @@ func getResetPasswordURL(c *gin.Context) string {
 
 // ResetPasswordPage renders the reset password form (when user clicks link in email)
 func ResetPasswordPage(c *gin.Context) {
-	// The token will be in the URL fragment, handled by JavaScript
 	renderPage(c, "templates/layouts/auth.html", "templates/auth/reset_password.html", gin.H{
 		"title": "Set New Password",
 	})

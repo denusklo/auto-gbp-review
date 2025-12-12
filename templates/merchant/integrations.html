@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }} - ViralEngine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex">
+                        <div class="flex-shrink-0 flex items-center">
+                            <h1 class="text-xl font-bold text-blue-600">ViralEngine</h1>
+                        </div>
+                        <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                            <a href="/dashboard" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Dashboard
+                            </a>
+                            <a href="/dashboard/profile" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Profile
+                            </a>
+                            <a href="/dashboard/integrations" class="border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Integrations
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <form action="/logout" method="POST">
+                            <button type="submit" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <div class="px-4 py-6 sm:px-0">
+                <!-- Header -->
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900">Social Media Integrations</h2>
+                    <p class="mt-2 text-sm text-gray-600">
+                        Connect your social media accounts to automatically sync reviews and mentions
+                    </p>
+                </div>
+
+                <!-- Available Platforms -->
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+                    <!-- Google Business Profile -->
+                    {{ if index .platforms "google_business" }}
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                                    <i class="fab fa-google text-white text-2xl"></i>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">
+                                            Google Business Profile
+                                        </dt>
+                                        <dd class="flex items-baseline">
+                                            <div class="text-xs text-gray-400">Reviews & Ratings</div>
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                {{ $connected := false }}
+                                {{ range .connections }}
+                                    {{ if eq .Platform "google_business" }}
+                                        {{ $connected = true }}
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center text-sm text-green-600">
+                                                <i class="fas fa-check-circle mr-2"></i>
+                                                Connected as {{ .PlatformAccountName }}
+                                            </div>
+                                            <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
+                                                Disconnect
+                                            </button>
+                                        </div>
+                                        {{ if .LastSyncAt }}
+                                        <div class="mt-2 text-xs text-gray-500">
+                                            Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
+                                        </div>
+                                        {{ end }}
+                                        <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                            Sync Now
+                                        </button>
+                                    {{ end }}
+                                {{ end }}
+                                {{ if not $connected }}
+                                <a href="/api/social-media/connect/google_business" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                    Connect
+                                </a>
+                                {{ end }}
+                            </div>
+                        </div>
+                    </div>
+                    {{ end }}
+
+                    <!-- Facebook -->
+                    {{ if index .platforms "facebook" }}
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-blue-600 rounded-md p-3">
+                                    <i class="fab fa-facebook text-white text-2xl"></i>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">
+                                            Facebook Page
+                                        </dt>
+                                        <dd class="flex items-baseline">
+                                            <div class="text-xs text-gray-400">Page Reviews</div>
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                {{ $connected := false }}
+                                {{ range .connections }}
+                                    {{ if eq .Platform "facebook" }}
+                                        {{ $connected = true }}
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center text-sm text-green-600">
+                                                <i class="fas fa-check-circle mr-2"></i>
+                                                Connected as {{ .PlatformAccountName }}
+                                            </div>
+                                            <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
+                                                Disconnect
+                                            </button>
+                                        </div>
+                                        {{ if .LastSyncAt }}
+                                        <div class="mt-2 text-xs text-gray-500">
+                                            Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
+                                        </div>
+                                        {{ end }}
+                                        <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                            Sync Now
+                                        </button>
+                                    {{ end }}
+                                {{ end }}
+                                {{ if not $connected }}
+                                <a href="/api/social-media/connect/facebook" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                    Connect
+                                </a>
+                                {{ end }}
+                            </div>
+                        </div>
+                    </div>
+                    {{ end }}
+
+                    <!-- Instagram -->
+                    {{ if index .platforms "instagram" }}
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-600 rounded-md p-3">
+                                    <i class="fab fa-instagram text-white text-2xl"></i>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">
+                                            Instagram Business
+                                        </dt>
+                                        <dd class="flex items-baseline">
+                                            <div class="text-xs text-gray-400">Comments & Mentions</div>
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                {{ $connected := false }}
+                                {{ range .connections }}
+                                    {{ if eq .Platform "instagram" }}
+                                        {{ $connected = true }}
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center text-sm text-green-600">
+                                                <i class="fas fa-check-circle mr-2"></i>
+                                                Connected as {{ .PlatformAccountName }}
+                                            </div>
+                                            <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
+                                                Disconnect
+                                            </button>
+                                        </div>
+                                        {{ if .LastSyncAt }}
+                                        <div class="mt-2 text-xs text-gray-500">
+                                            Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
+                                        </div>
+                                        {{ end }}
+                                        <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                            Sync Now
+                                        </button>
+                                    {{ end }}
+                                {{ end }}
+                                {{ if not $connected }}
+                                <a href="/api/social-media/connect/instagram" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                    Connect
+                                </a>
+                                {{ end }}
+                            </div>
+                        </div>
+                    </div>
+                    {{ end }}
+                </div>
+
+                <!-- Synced Reviews Section -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Synced Reviews</h3>
+                    <div id="synced-reviews" hx-get="/api/social-media/reviews?limit=10" hx-trigger="load" hx-indicator="#loading">
+                        <div id="loading" class="text-center py-8">
+                            <i class="fas fa-spinner fa-spin text-gray-400 text-2xl"></i>
+                            <p class="text-gray-500 mt-2">Loading reviews...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function disconnectPlatform(connectionId) {
+            if (!confirm('Are you sure you want to disconnect this platform?')) {
+                return;
+            }
+
+            fetch(`/api/social-media/connections/${connectionId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                    window.location.reload();
+                } else if (data.error) {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Failed to disconnect platform');
+                console.error(error);
+            });
+        }
+
+        function triggerSync(connectionId) {
+            const button = event.target;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Syncing...';
+
+            fetch(`/api/social-media/connections/${connectionId}/sync`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(`Sync completed!\n\nFetched: ${data.stats.fetched}\nAdded: ${data.stats.added}\nUpdated: ${data.stats.updated}`);
+                    window.location.reload();
+                } else if (data.error) {
+                    alert('Sync failed: ' + data.error);
+                }
+                button.disabled = false;
+                button.innerHTML = 'Sync Now';
+            })
+            .catch(error => {
+                alert('Failed to sync');
+                console.error(error);
+                button.disabled = false;
+                button.innerHTML = 'Sync Now';
+            });
+        }
+    </script>
+</body>
+</html>

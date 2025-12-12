@@ -84,6 +84,7 @@ func main() {
 func InitRoutes(router *gin.Engine, db *Database) {
 	// Create handlers
 	handlers := NewHandlers(db)
+	socialMediaHandlers := NewSocialMediaHandlers(db)
 
 	// Public routes
 	router.GET("/", handlers.Home)
@@ -95,6 +96,13 @@ func InitRoutes(router *gin.Engine, db *Database) {
 	router.GET("/register", SupabaseRedirectIfAuthenticated(), handlers.RegisterPage)
 	router.POST("/register", SupabaseRegister)
 	router.POST("/logout", SupabaseLogout)
+
+	// Email verification route
+	router.GET("/verify-email", func(c *gin.Context) {
+		renderPage(c, "templates/layouts/auth.html", "templates/auth/verify_email.html", gin.H{
+			"title": "Email Verification",
+		})
+	})
 
 	// Password reset routes (Supabase Auth only)
 	router.GET("/forgot-password", SupabaseRedirectIfAuthenticated(), ForgotPasswordPage)
@@ -123,6 +131,9 @@ func InitRoutes(router *gin.Engine, db *Database) {
 		merchant.GET("/", handlers.MerchantDashboard)
 		merchant.GET("/profile", handlers.MerchantProfile)
 		merchant.POST("/profile", handlers.UpdateMerchantProfile) // Changed from PUT to POST
+
+		// Social media integrations
+		merchant.GET("/integrations", socialMediaHandlers.IntegrationsPage)
 	}
 
 	// Health check endpoint
@@ -157,6 +168,33 @@ func InitRoutes(router *gin.Engine, db *Database) {
 		{
 			reviewsAPI.POST("/add", handlers.AddReview)
 			reviewsAPI.DELETE("/:id", handlers.DeleteReview)
+		}
+
+		// Social media API routes (protected)
+		socialMedia := api.Group("/social-media")
+		socialMedia.Use(SupabaseAuthMiddleware("merchant"))
+		{
+			// OAuth routes
+			socialMedia.GET("/connect/:platform", socialMediaHandlers.ConnectPlatform)
+			socialMedia.GET("/callback/:platform", socialMediaHandlers.OAuthCallback)
+
+			// Connection management
+			socialMedia.GET("/connections", socialMediaHandlers.GetConnections)
+			socialMedia.DELETE("/connections/:id", socialMediaHandlers.DisconnectPlatform)
+
+			// Sync operations
+			socialMedia.POST("/connections/:id/sync", socialMediaHandlers.TriggerSync)
+			socialMedia.GET("/connections/:id/logs", socialMediaHandlers.GetSyncLogs)
+
+			// Synced reviews
+			socialMedia.GET("/reviews", socialMediaHandlers.GetSyncedReviews)
+		}
+
+		// Admin social media routes
+		adminSocialMedia := api.Group("/admin/social-media")
+		adminSocialMedia.Use(SupabaseAuthMiddleware("admin"))
+		{
+			adminSocialMedia.GET("/connections", socialMediaHandlers.AdminConnectionsPage)
 		}
 	}
 }

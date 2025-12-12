@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        .htmx-indicator {
+            display: none;
+        }
+
+        .htmx-request .htmx-indicator {
+            display: inline-block;
+        }
+
+        .htmx-request.htmx-indicator {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+<!-- Handle Supabase auth redirects -->
+
+    {{if .user}}
+    <!-- Navigation for logged-in users -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="text-xl font-bold text-primary-600">
+                        <i class="fas fa-star mr-2"></i>Auto GBP Review
+                    </a>
+                    {{if eq .user_role "admin"}}
+                    <div class="hidden md:flex ml-10 space-x-8">
+                        <a href="/admin" class="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium">
+                            <i class="fas fa-tachometer-alt mr-1"></i>Admin
+                        </a>
+                    </div>
+                    {{end}}
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium">
+                        <i class="fas fa-chart-line mr-1"></i>Dashboard
+                    </a>
+                    <div class="relative group">
+                        <button class="flex items-center text-sm text-gray-700 hover:text-primary-600 focus:outline-none">
+                            <i class="fas fa-user-circle mr-1"></i>{{.user_email}}
+                            <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                        </button>
+                        <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                            <a href="/dashboard/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-user mr-2"></i>Profile
+                            </a>
+                            <form action="/logout" method="POST" class="block">
+                                <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {{else}}
+    <!-- Public Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="text-xl font-bold text-primary-600">
+                        <i class="fas fa-star mr-2"></i>Auto GBP Review
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/login" class="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium">
+                        <i class="fas fa-sign-in-alt mr-1"></i>Login
+                    </a>
+                    <a href="/register" class="bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">
+                        <i class="fas fa-user-plus mr-1"></i>Sign Up
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {{end}}
+
+    <!-- Flash Messages -->
+    {{range .flashes}}
+    <div class="container mx-auto px-4 mt-4">
+        <div class="alert alert-{{.Type}} alert-dismissible fade show" role="alert">
+            {{.Message}}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Main Content -->
+    <main>
+        {{template "content" .}}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="text-center">
+                <p>&copy; 2024 Auto GBP Review. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        // Configure HTMX
+        htmx.config.globalViewTransitions = true;
+
+        // Add loading states
+        document.body.addEventListener('htmx:beforeRequest', function(evt) {
+            // Show loading spinner if needed
+            const target = evt.target;
+            if (target.dataset.loading === 'spinner') {
+                target.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
+        });
+
+        // Handle successful requests
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            const success = evt.detail.successful;
+            if (success && evt.target.dataset.toast) {
+                showToast(evt.target.dataset.toast, 'success');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test URL with Hash</title>
+</head>
+<body>
+    <h1>Current URL</h1>
+    <script>
+        console.log('Page loaded');
+        console.log('Full URL:', window.location.href);
+        console.log('Hash:', window.location.hash);
+
+        // Test the actual URL format from your email
+        const testUrl = 'http://127.0.0.1:8082/#access_token=eyJhbGciOiJIUzI1NiIsImtpZCI6Ik5GOWVndHhjOWYrWkFReHQiLCJ0eXAiOiJKV1QifQ.eyJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJvdHAiLCJ0aW1lc3RhbXAiOjE3NjU1NTg0NzN9XSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sImF1ZCI6WyJhdXRoZW50aWNhdGVkIl0sImVtYWlsIjoiZG95b2s0MzA1MkByb2FzdGljLmNvbSIsImV4cCI6MTc2NTU2MjA3MywiaWF0IjoxNzY1NTU4NDczLCJpc19hbm9ueW1vdXMiOmZhbHNlLCJpc3MiOiJodHRwczovL2x1c29paGlzYW5ncWZwaXFyY3RsLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJwaG9uZSI6IiIsInJvbGUiOiJhdXRoZW50aWNhdGVkIiwic2Vzc2lvbl9pZCI6ImVhMzg0NTE4LTZiYjYtNDQ0Yi1iNWI1LWNmNTA5M2QzZDYwZSIsInN1YiI6IjgzNjM2OGM5LTA0YTAtNDk1Mi05YWQ1LTFhODI4MWE1ZWY1NSIsInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJkb3lvazQzMDUyQHJvYXN0aWMuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwicm9sZSI6Im1lcmNoYW50Iiwic3ViIjoiODM2MzY4YzktMDRhMC00OTUyLTlhZDUtMWE4MjgxYTVlZjU1In0sInVzZXJfcm9sZSI6Im1lcmNoYW50In0.kgZG0W8Mt4Fwri4hwM5CUIf0xCaZFCbXAqKHl717Mbs&expires_at=1765562073&expires_in=3600&refresh_token=dl2zc34tlvwr&token_type=bearer&type=signup';
+
+        // Parse the test URL
+        const testHash = testUrl.split('#')[1];
+        console.log('Test hash:', testHash);
+
+        // Try to parse with URLSearchParams
+        try {
+            const params = new URLSearchParams(testHash);
+            console.log('Parsed params successfully:');
+            for (const [key, value] of params.entries()) {
+                console.log(`  ${key}: ${value}`);
+            }
+        } catch (e) {
+            console.error('Failed to parse:', e);
+        }
+    </script>
+
+    <a href="http://127.0.0.1:8082/#access_token=test123&type=signup&token_type=bearer">Test Simple Link</a>
+    <br><br>
+    <a href="http://127.0.0.1:8082/#access_token=eyJhbGciOiJIUzI1NiIsImtpZCI6Ik5GOWVndHhjOWYrWkFReHQiLCJ0eXAiOiJKV1QifQ.eyJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJvdHAiLCJ0aW1lc3RhbXAiOjE3NjU1NTg0NzN9XSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sImF1ZCI6WyJhdXRoZW50aWNhdGVkIl0sImVtYWlsIjoiZG95b2s0MzA1MkByb2FzdGljLmNvbSIsImV4cCI6MTc2NTU2MjA3MywiaWF0IjoxNzY1NTU4NDczLCJpc19hbm9ueW1vdXMiOmZhbHNlLCJpc3MiOiJodHRwczovL2x1c29paGlzYW5ncWZwaXFyY3RsLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJwaG9uZSI6IiIsInJvbGUiOiJhdXRoZW50aWNhdGVkIiwic2Vzc2lvbl9pZCI6ImVhMzg0NTE4LTZiYjYtNDQ0Yi1iNWI1LWNmNTA5M2QzZDYwZSIsInN1YiI6IjgzNjM2OGM5LTA0YTAtNDk1Mi05YWQ1LTFhODI4MWE1ZWY1NSIsInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJkb3lvazQzMDUyQHJvYXN0aWMuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwicm9sZSI6Im1lcmNoYW50Iiwic3ViIjoiODM2MzY4YzktMDRhMC00OTUyLTlhZDUtMWE4MjgxYTVlZjU1In0sInVzZXJfcm9sZSI6Im1lcmNoYW50In0.kgZG0W8Mt4Fwri4hwM5CUIf0xCaZFCbXAqKHl717Mbs&expires_at=1765562073&expires_in=3600&refresh_token=dl2zc34tlvwr&token_type=bearer&type=signup">Test Real Signup Link</a>
+</body>
+</html>
