@@ -84,3 +84,7 @@ auto-gbp-review
 
 # Except for README.md
 !README.md
+
+# Claude Code settings
+.claude/settings.json
+.claude/
