@@ -1371,7 +1371,7 @@ func (h *Handlers) getReviewsByMerchantID(merchantID int) ([]Review, error) {
 		SELECT id, merchant_id, platform, review_text, is_active, created_at, updated_at
 		FROM merchant_reviews
 		WHERE merchant_id = $1
-		ORDER BY created_at DESC
+		ORDER BY created_at ASC
 	`, merchantID)
 	if err != nil {
 		return nil, err
@@ -1395,7 +1395,7 @@ func (h *Handlers) getActiveReviewsByMerchantID(merchantID int) ([]Review, error
 		SELECT id, merchant_id, platform, review_text, is_active, created_at, updated_at
 		FROM merchant_reviews
 		WHERE merchant_id = $1 AND is_active = true
-		ORDER BY created_at DESC
+		ORDER BY created_at ASC
 	`, merchantID)
 	if err != nil {
 		return nil, err
@@ -1490,7 +1490,7 @@ func (h *Handlers) AddReview(c *gin.Context) {
 		return
 	}
 
-	// Get the last review (the one we just created)
+	// Get the last review (the one we just created - now ordered by created_at ASC)
 	newReview := reviews[len(reviews)-1]
 
 	// Return HTML for the new review item with success toast
