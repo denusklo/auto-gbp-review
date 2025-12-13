@@ -399,11 +399,8 @@ func ResetPasswordCallback(c *gin.Context) {
 	// Clear reset session cookie
 	c.SetCookie("reset_access_token", "", -1, "/", "", false, true)
 
-	// Show success page with login link
-	renderPage(c, "templates/layouts/auth.html", "templates/auth/reset_password.html", gin.H{
-		"title": "Reset Password",
-		"success": true,
-	})
+	// Redirect to login with success message
+	c.Redirect(http.StatusFound, "/login?password_reset=true")
 }
 
 // extractEmailFromRedirect attempts to extract email from redirect URL

@@ -35,7 +35,21 @@
             </div>
             {{end}}
 
-            <form action="/dashboard/profile" method="POST" enctype="multipart/form-data">
+            <!-- Saving Indicator -->
+            <div id="saving-indicator" class="htmx-indicator hidden mb-6">
+                <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                    <div class="flex items-center">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                        <div class="text-sm text-blue-700">Saving profile...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="form-container">
+            <form action="/dashboard/profile" method="POST" enctype="multipart/form-data"
+          hx-post="/dashboard/profile"
+          hx-indicator="#saving-indicator"
+          hx-swap="afterbegin">
                 <!-- Removed the _method hidden field since we're using POST directly -->
 
                 <div class="space-y-6">
@@ -46,6 +60,13 @@
                         </div>
                         <div class="p-6 space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                                    <input type="email" id="email" value="{{.userEmail}}" disabled
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-500 cursor-not-allowed sm:text-sm">
+                                    <p class="mt-1 text-xs text-gray-500">This is the email associated with your account</p>
+                                </div>
+
                                 <div>
                                     <label for="business_name" class="block text-sm font-medium text-gray-700">Business
                                         Name *</label>
@@ -59,7 +80,7 @@
                                     <input type="text" name="slug" id="slug" required
                                         value="{{if .merchant}}{{.merchant.Slug}}{{end}}"
                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        pattern="[a-z0-9-]+"
+                                        pattern="[a-z0-9\-]+"
                                         title="Only lowercase letters, numbers, and hyphens allowed">
                                     <p class="mt-1 text-xs text-gray-500">This will be your business URL:
                                         yourdomain.com/?bn=your-slug</p>
@@ -96,7 +117,7 @@
                                     <label for="theme_color" class="block text-sm font-medium text-gray-700">Theme
                                         Color</label>
                                     <input type="color" name="theme_color" id="theme_color"
-                                        value="{{if .details}}{{.details.ThemeColor}}{{else}}#3B82F6{{end}}"
+                                        value="{{if .details}}{{.details.ThemeColor}}{{else}}#FFFFFF{{end}}"
                                         class="mt-1 block w-full h-10 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                                 </div>
                             </div>
@@ -292,6 +313,7 @@
                     </div>
                 </div>
             </form>
+            </div>
 
             <!-- Review Templates Management (Outside main form) -->
             <div class="bg-white shadow rounded-lg mt-6">
@@ -441,6 +463,54 @@
     });
 </script>
 
+<script>
+    // Handle HTMX responses for form submission
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        // Check if this is a profile form submission
+        if (evt.detail.target && evt.detail.target.form && evt.detail.target.form.action && evt.detail.target.form.action.includes('/dashboard/profile')) {
+            const response = evt.detail.xhr.response;
+
+            try {
+                const data = JSON.parse(response);
+
+                if (data.success) {
+                    // Show success toast
+                    iziToast.success({
+                        title: 'Profile Updated!',
+                        message: data.message || 'Your business profile has been successfully saved.',
+                        icon: 'fas fa-save',
+                    });
+                } else if (data.errors && data.errors.length > 0) {
+                    // Show error toast with field names
+                    data.errors.forEach(function(error) {
+                        iziToast.error({
+                            title: 'Validation Error',
+                            message: error,
+                            icon: 'fas fa-exclamation-circle',
+                            timeout: 7000, // Longer timeout for validation errors
+                        });
+                    });
+                }
+            } catch (e) {
+                // Not a JSON response, probably a redirect
+                console.log('Redirecting or non-JSON response');
+            }
+        }
+    });
+
+    // Handle file input change to show preview
+    document.getElementById('logo_file')?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // You could add a preview here if needed
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
+
 <style>
     .rating-stars {
         display: flex;
@@ -459,6 +529,19 @@
 
     .review-item:hover {
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* HTMX indicator styles */
+    .htmx-indicator {
+        display: none;
+    }
+
+    .htmx-request .htmx-indicator {
+        display: block;
+    }
+
+    .htmx-request.htmx-indicator {
+        display: block;
     }
 </style>
 {{end}}

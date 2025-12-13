@@ -329,10 +329,8 @@ func ForgotPassword(c *gin.Context) {
 		})
 		return
 	}
-	
-	renderPage(c, "templates/layouts/auth.html", "templates/auth/forgot_password.html", gin.H{
-		"success": true,
-	})
+
+	c.Redirect(http.StatusFound, "/forgot-password?reset_sent=true")
 }
 
 // checkUserExistsSupabase checks if a user exists using Node.js helper

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"net/url"
@@ -623,6 +624,7 @@ func (h *Handlers) getMerchantStats(merchantID int) map[string]interface{} {
 
 func (h *Handlers) MerchantProfile(c *gin.Context) {
 	userID := c.GetString("user_id")
+	userEmail := c.GetString("user_email")
 	merchants, err := h.getMerchantsByAuthUserID(userID)
 	if err != nil {
 		renderPage(c, "templates/layouts/base.html", "templates/error.html", gin.H{
@@ -645,10 +647,11 @@ func (h *Handlers) MerchantProfile(c *gin.Context) {
 	}
 
 	renderPage(c, "templates/layouts/base.html", "templates/merchant_profile.html", gin.H{
-		"title":    "Profile",
-		"merchant": merchant,
-		"details":  details,
-		"reviews":  reviews,
+		"title":     "Profile",
+		"merchant":  merchant,
+		"details":   details,
+		"reviews":   reviews,
+		"userEmail": userEmail,
 	})
 }
 
@@ -656,9 +659,69 @@ func (h *Handlers) MerchantProfile(c *gin.Context) {
 func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 	userID := c.GetString("user_id")
 
+	// Validate required fields
+	var errors []string
+	businessName := strings.TrimSpace(c.PostForm("business_name"))
+	slug := strings.TrimSpace(c.PostForm("slug"))
+
+	if businessName == "" {
+		errors = append(errors, "Business Name is required")
+	}
+	if slug == "" {
+		errors = append(errors, "URL Slug is required")
+	}
+
+	// If there are validation errors, return them
+	if len(errors) > 0 {
+		// Check if this is an AJAX request
+		if c.GetHeader("HX-Request") != "" {
+			// Return HTML with JavaScript to show error toasts
+			var errorJS string
+			for _, error := range errors {
+				errorJS += fmt.Sprintf(`
+					iziToast.error({
+						title: 'Validation Error',
+						message: '%s',
+						icon: 'fas fa-exclamation-circle',
+						timeout: 7000,
+					});`, error)
+			}
+			html := fmt.Sprintf("<script>%s</script>", errorJS)
+			c.Header("Content-Type", "text/html")
+			c.String(http.StatusBadRequest, html)
+			return
+		}
+
+		// For non-AJAX requests, get existing data and render page with errors
+		merchants, _ := h.getMerchantsByAuthUserID(userID)
+		var merchant *Merchant
+		var details *MerchantDetails
+		if len(merchants) > 0 {
+			merchant = &merchants[0]
+			details, _ = h.getMerchantDetails(merchant.ID)
+		}
+
+		errorMsg := strings.Join(errors, ", ")
+		renderPage(c, "templates/layouts/base.html", "templates/merchant_profile.html", gin.H{
+			"title":     "Profile",
+			"merchant":  merchant,
+			"details":   details,
+			"error":     errorMsg,
+			"userEmail": c.GetString("user_email"),
+		})
+		return
+	}
+
 	// Get or create merchant (your existing logic)
 	merchants, err := h.getMerchantsByAuthUserID(userID)
 	if err != nil {
+		if c.GetHeader("HX-Request") != "" {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"errors":  []string{"Failed to load your business"},
+			})
+			return
+		}
 		renderPage(c, "templates/layouts/base.html", "templates/error.html", gin.H{
 			"error": "Failed to load your business",
 		})
@@ -670,10 +733,15 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 
 	if len(merchants) == 0 {
 		// Create new merchant
-		businessName := c.PostForm("business_name")
-		slug := c.PostForm("slug")
 		merchantID, err = h.createMerchantWithAuthUserID(userID, businessName, slug)
 		if err != nil {
+			if c.GetHeader("HX-Request") != "" {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"errors":  []string{"Failed to create business: " + err.Error()},
+				})
+				return
+			}
 			renderPage(c, "templates/layouts/base.html", "templates/merchant_profile.html", gin.H{
 				"title": "Profile",
 				"error": "Failed to create business: " + err.Error(),
@@ -690,10 +758,15 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		currentDetails, _ = h.getMerchantDetails(merchantID)
 
 		// Update existing merchant
-		businessName := c.PostForm("business_name")
-		slug := c.PostForm("slug")
 		err = h.updateMerchant(merchantID, businessName, slug, true)
 		if err != nil {
+			if c.GetHeader("HX-Request") != "" {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"errors":  []string{"Failed to update business: " + err.Error()},
+				})
+				return
+			}
 			renderPage(c, "templates/layouts/base.html", "templates/merchant_profile.html", gin.H{
 				"title": "Profile",
 				"error": "Failed to update business: " + err.Error(),
@@ -714,6 +787,13 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		// Validate file type
 		contentType := header.Header.Get("Content-Type")
 		if !strings.HasPrefix(contentType, "image/") {
+			if c.GetHeader("HX-Request") != "" {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"errors":  []string{"Please upload an image file (jpg, png, gif, webp)"},
+				})
+				return
+			}
 			// Get existing data for redisplay
 			merchants, _ := h.getMerchantsByAuthUserID(userID)
 			var merchant *Merchant
@@ -809,6 +889,21 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 				}
 			}
 		}
+	}
+
+	// Check if this is an AJAX request
+	if c.GetHeader("HX-Request") != "" {
+		// Return HTML with JavaScript to show toast
+		html := `<script>
+			iziToast.success({
+				title: 'Profile Updated!',
+				message: 'Your business profile has been successfully saved.',
+				icon: 'fas fa-save',
+			});
+		</script>`
+		c.Header("Content-Type", "text/html")
+		c.String(http.StatusOK, html)
+		return
 	}
 
 	c.Redirect(http.StatusFound, "/dashboard/profile?success=1")
@@ -1379,9 +1474,72 @@ func (h *Handlers) AddReview(c *gin.Context) {
 	}
 
 	log.Printf("AddReview: Successfully created review template")
-	// Return success response for HTMX - trigger page reload
-	c.Header("HX-Refresh", "true")
-	c.Status(http.StatusOK)
+
+	// Get the newly created review to return as HTML
+	reviews, err := h.getReviewsByMerchantID(merchantID)
+	if err != nil || len(reviews) == 0 {
+		log.Printf("AddReview error: Failed to retrieve created review - %v", err)
+		c.Header("Content-Type", "text/html")
+		c.String(http.StatusInternalServerError, `<script>
+			iziToast.error({
+				title: 'Error',
+				message: 'Failed to retrieve the created template',
+				icon: 'fas fa-exclamation-circle',
+			});
+		</script>`)
+		return
+	}
+
+	// Get the last review (the one we just created)
+	newReview := reviews[len(reviews)-1]
+
+	// Return HTML for the new review item with success toast
+	html := fmt.Sprintf(`
+		<div class="review-item border border-gray-200 rounded-lg p-4 mb-4" data-review-id="%d">
+			<div class="flex justify-between items-start mb-3">
+				<div class="flex items-center space-x-3">
+					<select name="platform_%d" class="review-platform border-gray-300 rounded-md text-sm">
+						<option value="google" %s>Google</option>
+						<option value="facebook" %s>Facebook</option>
+					</select>
+					<span class="text-sm text-gray-600">Template</span>
+				</div>
+				<div class="flex items-center space-x-2">
+					<label class="flex items-center">
+						<input type="checkbox" name="is_active_%d" %s class="review-active">
+						<span class="ml-2 text-sm text-gray-600">Active</span>
+					</label>
+					<button type="button" class="text-red-600 hover:text-red-800 text-sm"
+							hx-delete="/api/reviews/%d"
+							hx-target="closest .review-item"
+							hx-swap="outerHTML"
+							hx-confirm="Are you sure you want to delete this review template?">Delete</button>
+				</div>
+			</div>
+			<div class="space-y-3">
+				<textarea name="text_%d" rows="3" placeholder="Review template text that customers can copy..." class="block w-full border-gray-300 rounded-md shadow-sm text-sm">%s</textarea>
+			</div>
+		</div>
+		<script>
+			iziToast.success({
+				title: 'Template Added!',
+				message: 'Review template has been created successfully.',
+				icon: 'fas fa-plus-circle',
+			});
+		</script>`,
+		newReview.ID,
+		newReview.ID,
+		func() string { if newReview.Platform == "google" { return "selected" } else { return "" } }(),
+		func() string { if newReview.Platform == "facebook" { return "selected" } else { return "" } }(),
+		newReview.ID,
+		func() string { if newReview.IsActive { return "checked" } else { return "" } }(),
+		newReview.ID,
+		newReview.ID,
+		template.JSEscapeString(newReview.ReviewText),
+	)
+
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
 }
 
 func (h *Handlers) DeleteReview(c *gin.Context) {
@@ -1394,11 +1552,26 @@ func (h *Handlers) DeleteReview(c *gin.Context) {
 
 	err = h.deleteReview(reviewID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete review"})
+		c.Header("Content-Type", "text/html")
+		c.String(http.StatusInternalServerError, `<script>
+			iziToast.error({
+				title: 'Error',
+				message: 'Failed to delete review template',
+				icon: 'fas fa-exclamation-circle',
+			});
+		</script>`)
 		return
 	}
 
-	c.Status(http.StatusOK)
+	// Return empty response with success toast (HTMX will remove the element)
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, `<script>
+		iziToast.success({
+			title: 'Template Deleted!',
+			message: 'Review template has been deleted successfully.',
+			icon: 'fas fa-trash-alt',
+		});
+	</script>`)
 }
 
 // GetReviewsData returns reviews data as JSON for a specific merchant
