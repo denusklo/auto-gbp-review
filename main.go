@@ -97,12 +97,9 @@ func InitRoutes(router *gin.Engine, db *Database) {
 	router.POST("/register", SupabaseRegister)
 	router.POST("/logout", SupabaseLogout)
 
-	// Email verification route
-	router.GET("/verify-email", func(c *gin.Context) {
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/verify_email.html", gin.H{
-			"title": "Email Verification",
-		})
-	})
+	// Supabase auth callback routes (server-side handling)
+	router.GET("/auth/callback", HandleSupabaseAuthCallback)
+	router.POST("/auth/reset-password", ResetPasswordCallback)
 
 	// Password reset routes (Supabase Auth only)
 	router.GET("/forgot-password", SupabaseRedirectIfAuthenticated(), ForgotPasswordPage)

@@ -355,7 +355,7 @@ func getResetPasswordURL(c *gin.Context) string {
 		scheme = "https"
 	}
 	host := c.Request.Host
-	return fmt.Sprintf("%s://%s/reset-password", scheme, host)
+	return fmt.Sprintf("%s://%s/auth/callback", scheme, host)
 }
 
 // ResetPasswordPage renders the reset password form (when user clicks link in email)
