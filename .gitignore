@@ -88,3 +88,6 @@ auto-gbp-review
 # Claude Code settings
 .claude/settings.json
 .claude/
+
+.env.local
+.env.production

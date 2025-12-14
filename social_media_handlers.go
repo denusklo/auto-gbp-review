@@ -4,13 +4,36 @@ import (
 	"auto-gbp-review/social_media"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
+
+// setFlashCookies sets flash message cookies with consistent parameters
+func setFlashCookies(c *gin.Context, flashType, platform, message string) {
+	c.SetCookie("oauth_error_type", flashType, 300, "/", "", false, true)
+	c.SetCookie("oauth_platform", platform, 300, "/", "", false, true)
+	c.SetCookie("oauth_error_msg", message, 300, "/", "", false, true)
+}
+
+// setSuccessCookie sets success flash cookie
+func setSuccessCookie(c *gin.Context, platform, message string) {
+	c.SetCookie("oauth_success", message, 300, "/", "", false, true)
+	c.SetCookie("oauth_platform", platform, 300, "/", "", false, true)
+}
+
+// clearFlashCookies clears all flash message cookies
+func clearFlashCookies(c *gin.Context) {
+	cookies := []string{"oauth_error_type", "oauth_platform", "oauth_error_msg", "oauth_success"}
+	for _, cookie := range cookies {
+		c.SetCookie(cookie, "", -1, "/", "", false, true)
+	}
+}
 
 // SocialMediaHandlers handles OAuth and sync operations for social media integrations
 type SocialMediaHandlers struct {
@@ -71,6 +94,17 @@ func NewSocialMediaHandlers(db *Database) *SocialMediaHandlers {
 		syncService.RegisterProvider(igProvider)
 	}
 
+	// Xiaohongshu (XHS)
+	if os.Getenv("XHS_APP_KEY") != "" {
+		xhsProvider := socialmedia.NewXHSProvider(
+			os.Getenv("XHS_APP_KEY"),
+			os.Getenv("XHS_APP_SECRET"),
+			os.Getenv("XHS_REDIRECT_URI"),
+		)
+		providers[socialmedia.PlatformXiaohongshu] = xhsProvider
+		syncService.RegisterProvider(xhsProvider)
+	}
+
 	// Create scheduler
 	scheduler := socialmedia.NewScheduler(syncService)
 	scheduler.Start()
@@ -93,13 +127,6 @@ func generateState() string {
 // ConnectPlatform initiates OAuth flow for a platform
 func (h *SocialMediaHandlers) ConnectPlatform(c *gin.Context) {
 	platform := c.Param("platform")
-
-	// Get merchant ID from authenticated user
-	merchantID := c.GetInt("merchant_id")
-	if merchantID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
-		return
-	}
 
 	// Check if provider exists
 	provider, ok := h.providers[platform]
@@ -124,6 +151,12 @@ func (h *SocialMediaHandlers) ConnectPlatform(c *gin.Context) {
 func (h *SocialMediaHandlers) OAuthCallback(c *gin.Context) {
 	platform := c.Param("platform")
 
+	// Debug: Log incoming request
+	log.Printf("OAuth callback for platform: %s", platform)
+	log.Printf("Full URL: %s", c.Request.URL.String())
+
+	// Get merchant ID from authenticated user (already validated above)
+
 	// Verify state
 	stateCookie, _ := c.Cookie("oauth_state")
 	stateParam := c.Query("state")
@@ -142,9 +175,9 @@ func (h *SocialMediaHandlers) OAuthCallback(c *gin.Context) {
 	}
 
 	// Get merchant ID from authenticated user
-	merchantID := c.GetInt("merchant_id")
-	if merchantID == 0 {
-		c.String(http.StatusUnauthorized, "Merchant not found")
+	merchantID, err := h.getMerchantIDFromContext(c)
+	if err != nil {
+		c.String(http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -167,7 +200,16 @@ func (h *SocialMediaHandlers) OAuthCallback(c *gin.Context) {
 	accountInfo, err := provider.GetAccountInfo(tokenResp.AccessToken)
 	if err != nil {
 		log.Printf("Error getting account info: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to get account information")
+
+		// Categorize the error
+		errorType := categorizeError(err, platform)
+		errorMsg := getErrorMessage(errorType, err)
+
+		// Store error in cookies using helper function
+		setFlashCookies(c, errorType, platform, errorMsg)
+
+		// Redirect to clean URL without query parameters
+		c.Redirect(http.StatusTemporaryRedirect, "/dashboard/integrations")
 		return
 	}
 
@@ -207,24 +249,26 @@ func (h *SocialMediaHandlers) OAuthCallback(c *gin.Context) {
 		return
 	}
 
-	// Clear cookies
+	// Clear OAuth state cookies (keep flash cookies for display)
 	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
-	c.SetCookie("oauth_platform", "", -1, "/", "", false, true)
 
 	// Trigger initial sync
 	go func() {
 		h.syncService.SyncConnection(connection.ID, socialmedia.SyncTypeManual)
 	}()
 
-	// Redirect to dashboard
+	// Store success in cookies using helper function
+	setSuccessCookie(c, platform, "connected")
+
+	// Redirect to clean URL without query parameters
 	c.Redirect(http.StatusTemporaryRedirect, "/dashboard/integrations")
 }
 
 // GetConnections returns all API connections for the merchant
 func (h *SocialMediaHandlers) GetConnections(c *gin.Context) {
-	merchantID := c.GetInt("merchant_id")
-	if merchantID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
+	merchantID, err := h.getMerchantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -246,9 +290,9 @@ func (h *SocialMediaHandlers) DisconnectPlatform(c *gin.Context) {
 		return
 	}
 
-	merchantID := c.GetInt("merchant_id")
-	if merchantID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
+	merchantID, err := h.getMerchantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -278,9 +322,9 @@ func (h *SocialMediaHandlers) TriggerSync(c *gin.Context) {
 		return
 	}
 
-	merchantID := c.GetInt("merchant_id")
-	if merchantID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
+	merchantID, err := h.getMerchantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -315,9 +359,10 @@ func (h *SocialMediaHandlers) TriggerSync(c *gin.Context) {
 
 // GetSyncedReviews returns synced reviews for the merchant
 func (h *SocialMediaHandlers) GetSyncedReviews(c *gin.Context) {
-	merchantID := c.GetInt("merchant_id")
-	if merchantID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
+	// Get merchant ID from authenticated user
+	merchantID, err := h.getMerchantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -355,24 +400,117 @@ func (h *SocialMediaHandlers) GetSyncedReviews(c *gin.Context) {
 
 // IntegrationsPage renders the integrations management page
 func (h *SocialMediaHandlers) IntegrationsPage(c *gin.Context) {
-	merchantID := c.GetInt("merchant_id")
-	if merchantID == 0 {
+	userID := c.GetString("user_id")
+	if userID == "" {
 		c.Redirect(http.StatusTemporaryRedirect, "/login")
 		return
 	}
 
+	// Get merchants for this user
+	merchants, err := h.getMerchantsByAuthUserID(userID)
+	if err != nil || len(merchants) == 0 {
+		renderPage(c, "templates/layouts/base.html", "templates/error.html", gin.H{
+			"error": "No business account found. Please create a business profile first.",
+		})
+		return
+	}
+
+	// Use first merchant (most users have one business)
+	merchantID := merchants[0].ID
+
 	smDB := socialmedia.NewDB(h.db.DB)
 	connections, _ := smDB.GetAPIConnectionsByMerchant(merchantID)
 
-	renderPage(c, "templates/layouts/base.html", "templates/merchant/integrations.html", gin.H{
+	// Check for error or success in cookies first, then query parameters (fallback)
+	var errorType, platform, errorMsg, success string
+
+	// Try cookies first (new approach)
+	errorType, _ = c.Cookie("oauth_error_type")
+	errorMsg, _ = c.Cookie("oauth_error_msg")
+	platform, _ = c.Cookie("oauth_platform")
+	success, _ = c.Cookie("oauth_success")
+
+	// Fallback to query parameters (for direct access or old links)
+	if errorType == "" && c.Query("error") != "" {
+		errorType = c.Query("error")
+		errorMsg = c.Query("msg")
+		platform = c.Query("platform")
+	}
+	if success == "" && c.Query("success") != "" {
+		success = c.Query("success")
+		if platform == "" {
+			platform = c.Query("platform")
+		}
+	}
+
+	// Prepare data for template
+	data := gin.H{
 		"title":       "Social Media Integrations",
 		"connections": connections,
 		"platforms": map[string]bool{
 			"google_business": os.Getenv("GOOGLE_CLIENT_ID") != "",
 			"facebook":        os.Getenv("FACEBOOK_APP_ID") != "",
 			"instagram":       os.Getenv("FACEBOOK_APP_ID") != "",
+			"xiaohongshu":     os.Getenv("XHS_APP_KEY") != "",
 		},
-	})
+	}
+
+	// Add error data if present
+	if errorType != "" {
+		data["errorType"] = errorType
+		data["errorPlatform"] = platform
+		data["errorMessage"] = errorMsg
+	}
+
+	// Add success data if present
+	if success != "" {
+		data["success"] = success
+		data["platform"] = platform
+	}
+
+	// Clear flash cookies after reading them (show-once behavior)
+	clearFlashCookies(c)
+
+	renderPage(c, "templates/layouts/base.html", "templates/merchant/integrations.html", data)
+}
+
+// getMerchantIDFromContext gets the merchant ID from the authenticated user context
+func (h *SocialMediaHandlers) getMerchantIDFromContext(c *gin.Context) (int, error) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		return 0, fmt.Errorf("user not authenticated")
+	}
+
+	merchants, err := h.getMerchantsByAuthUserID(userID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get merchants: %w", err)
+	}
+
+	if len(merchants) == 0 {
+		return 0, fmt.Errorf("no business account found")
+	}
+
+	// Use first merchant (most users have one business)
+	return merchants[0].ID, nil
+}
+
+// getMerchantsByAuthUserID retrieves merchants for a given auth user ID
+func (h *SocialMediaHandlers) getMerchantsByAuthUserID(authUserID string) ([]Merchant, error) {
+	rows, err := h.db.Query("SELECT id, auth_user_id, business_name, slug, is_active, created_at FROM merchants WHERE auth_user_id = $1 ORDER BY created_at DESC", authUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var merchants []Merchant
+	for rows.Next() {
+		var merchant Merchant
+		if err := rows.Scan(&merchant.ID, &merchant.AuthUserID, &merchant.BusinessName, &merchant.Slug, &merchant.IsActive, &merchant.CreatedAt); err != nil {
+			return nil, err
+		}
+		merchants = append(merchants, merchant)
+	}
+	return merchants, nil
 }
 
 // AdminConnectionsPage shows all connections for admin
@@ -389,9 +527,9 @@ func (h *SocialMediaHandlers) GetSyncLogs(c *gin.Context) {
 		return
 	}
 
-	merchantID := c.GetInt("merchant_id")
-	if merchantID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
+	merchantID, err := h.getMerchantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -414,4 +552,50 @@ func (h *SocialMediaHandlers) GetSyncLogs(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"logs": logs})
+}
+
+// categorizeError categorizes OAuth errors for better user messages
+func categorizeError(err error, platform string) string {
+	errStr := err.Error()
+
+	if strings.Contains(errStr, "429") || strings.Contains(errStr, "Too Many Requests") {
+		return "rate_limit"
+	}
+	if strings.Contains(errStr, "401") || strings.Contains(errStr, "Unauthorized") {
+		return "auth"
+	}
+	if strings.Contains(errStr, "403") || strings.Contains(errStr, "Forbidden") {
+		return "permission"
+	}
+	if strings.Contains(errStr, "404") || strings.Contains(errStr, "not found") {
+		if platform == "google_business" {
+			return "no_business"
+		}
+		return "not_found"
+	}
+	if strings.Contains(errStr, "network") || strings.Contains(errStr, "connection") {
+		return "network"
+	}
+
+	return "unknown"
+}
+
+// getErrorMessage returns user-friendly error messages
+func getErrorMessage(errorType string, err error) string {
+	switch errorType {
+	case "rate_limit":
+		return "API quota exceeded. Please wait a few minutes before trying again."
+	case "auth":
+		return "Authentication failed. Please try connecting again."
+	case "permission":
+		return "Permission denied. Make sure you have admin access to the business account."
+	case "no_business":
+		return "No Google Business Profile found. Please create or claim a business profile first."
+	case "not_found":
+		return "The requested resource was not found. Please contact support if this persists."
+	case "network":
+		return "Network error. Please check your internet connection and try again."
+	default:
+		return fmt.Sprintf("Connection failed: %v", err)
+	}
 }

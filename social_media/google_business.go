@@ -50,6 +50,10 @@ func (p *GoogleBusinessProvider) GetAuthorizationURL(state string) string {
 
 // ExchangeCodeForToken exchanges an authorization code for access and refresh tokens
 func (p *GoogleBusinessProvider) ExchangeCodeForToken(code string) (*TokenResponse, error) {
+	// Debug logging
+	fmt.Printf("Google ExchangeCodeForToken - code: %s\n", code[:20]+"...")
+	fmt.Printf("Google ExchangeCodeForToken - redirectURI: %s\n", p.redirectURI)
+
 	data := url.Values{}
 	data.Set("code", code)
 	data.Set("client_id", p.clientID)

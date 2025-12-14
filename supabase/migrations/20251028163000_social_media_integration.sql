@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS api_connections (
     id SERIAL PRIMARY KEY,
     merchant_id INTEGER NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
-    platform VARCHAR(50) NOT NULL CHECK (platform IN ('google_business', 'facebook', 'instagram')),
+    platform VARCHAR(50) NOT NULL CHECK (platform IN ('google_business', 'facebook', 'instagram', 'xiaohongshu')),
     platform_account_id VARCHAR(255), -- External account ID from the platform
     platform_account_name VARCHAR(255), -- Account display name
     access_token TEXT, -- Encrypted OAuth access token
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS synced_reviews (
     id SERIAL PRIMARY KEY,
     merchant_id INTEGER NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
     api_connection_id INTEGER REFERENCES api_connections(id) ON DELETE SET NULL,
-    platform VARCHAR(50) NOT NULL CHECK (platform IN ('google_business', 'facebook', 'instagram')),
+    platform VARCHAR(50) NOT NULL CHECK (platform IN ('google_business', 'facebook', 'instagram', 'xiaohongshu')),
     platform_review_id VARCHAR(255) NOT NULL, -- Unique ID from the platform
     author_name VARCHAR(255),
     author_photo_url VARCHAR(500),

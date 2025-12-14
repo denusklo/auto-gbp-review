@@ -1,283 +1,530 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .title }} - ViralEngine</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body class="bg-gray-50">
-    <div class="min-h-screen">
-        <!-- Navigation -->
-        <nav class="bg-white shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex">
-                        <div class="flex-shrink-0 flex items-center">
-                            <h1 class="text-xl font-bold text-blue-600">ViralEngine</h1>
-                        </div>
-                        <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <a href="/dashboard" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                                Dashboard
-                            </a>
-                            <a href="/dashboard/profile" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                                Profile
-                            </a>
-                            <a href="/dashboard/integrations" class="border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                                Integrations
-                            </a>
-                        </div>
+{{define "title"}}Social Media Integrations{{end}}
+
+{{define "content"}}
+<div class="min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <h1 class="text-xl font-bold text-blue-600">ViralEngine</h1>
                     </div>
-                    <div class="flex items-center">
-                        <form action="/logout" method="POST">
-                            <button type="submit" class="text-gray-500 hover:text-gray-700">
-                                <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                            </button>
-                        </form>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="/dashboard" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Dashboard
+                        </a>
+                        <a href="/dashboard/profile" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Profile
+                        </a>
+                        <a href="/dashboard/integrations" class="border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Integrations
+                        </a>
                     </div>
+                </div>
+                <div class="flex items-center">
+                    <form action="/logout" method="POST">
+                        <button type="submit" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </button>
+                    </form>
                 </div>
             </div>
-        </nav>
+        </div>
+    </nav>
 
-        <!-- Main Content -->
-        <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <div class="px-4 py-6 sm:px-0">
-                <!-- Header -->
-                <div class="mb-8">
-                    <h2 class="text-3xl font-bold text-gray-900">Social Media Integrations</h2>
-                    <p class="mt-2 text-sm text-gray-600">
-                        Connect your social media accounts to automatically sync reviews and mentions
-                    </p>
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Header -->
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900">Social Media Integrations</h2>
+                <p class="mt-2 text-sm text-gray-600">
+                    Connect your social media accounts to automatically sync reviews and mentions
+                </p>
+            </div>
+
+            <!-- Available Platforms -->
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+                <!-- Google Business Profile -->
+                {{ if index .platforms "google_business" }}
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                                <i class="fab fa-google text-white text-2xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">
+                                        Google Business Profile
+                                    </dt>
+                                    <dd class="flex items-baseline">
+                                        <div class="text-xs text-gray-400">Reviews & Ratings</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            {{ $connected := false }}
+                            {{ range .connections }}
+                                {{ if eq .Platform "google_business" }}
+                                    {{ $connected = true }}
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center text-sm text-green-600">
+                                            <i class="fas fa-check-circle mr-2"></i>
+                                            Connected as {{ .PlatformAccountName }}
+                                        </div>
+                                        <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
+                                            Disconnect
+                                        </button>
+                                    </div>
+                                    {{ if .LastSyncAt }}
+                                    <div class="mt-2 text-xs text-gray-500">
+                                        Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
+                                    </div>
+                                    {{ end }}
+                                    <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                        Sync Now
+                                    </button>
+                                {{ end }}
+                            {{ end }}
+                            {{ if not $connected }}
+                            <a href="/api/social-media/connect/google_business" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                Connect
+                            </a>
+                            {{ end }}
+                        </div>
+                    </div>
                 </div>
+                {{ end }}
 
-                <!-- Available Platforms -->
-                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-                    <!-- Google Business Profile -->
-                    {{ if index .platforms "google_business" }}
-                    <div class="bg-white overflow-hidden shadow rounded-lg">
-                        <div class="p-6">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
-                                    <i class="fab fa-google text-white text-2xl"></i>
-                                </div>
-                                <div class="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt class="text-sm font-medium text-gray-500 truncate">
-                                            Google Business Profile
-                                        </dt>
-                                        <dd class="flex items-baseline">
-                                            <div class="text-xs text-gray-400">Reviews & Ratings</div>
-                                        </dd>
-                                    </dl>
-                                </div>
+                <!-- Facebook -->
+                {{ if index .platforms "facebook" }}
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-blue-600 rounded-md p-3">
+                                <i class="fab fa-facebook-f text-white text-2xl"></i>
                             </div>
-                            <div class="mt-4">
-                                {{ $connected := false }}
-                                {{ range .connections }}
-                                    {{ if eq .Platform "google_business" }}
-                                        {{ $connected = true }}
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center text-sm text-green-600">
-                                                <i class="fas fa-check-circle mr-2"></i>
-                                                Connected as {{ .PlatformAccountName }}
-                                            </div>
-                                            <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
-                                                Disconnect
-                                            </button>
-                                        </div>
-                                        {{ if .LastSyncAt }}
-                                        <div class="mt-2 text-xs text-gray-500">
-                                            Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
-                                        </div>
-                                        {{ end }}
-                                        <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-                                            Sync Now
-                                        </button>
-                                    {{ end }}
-                                {{ end }}
-                                {{ if not $connected }}
-                                <a href="/api/social-media/connect/google_business" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                    Connect
-                                </a>
-                                {{ end }}
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">
+                                        Facebook Page
+                                    </dt>
+                                    <dd class="flex items-baseline">
+                                        <div class="text-xs text-gray-400">Page Reviews</div>
+                                    </dd>
+                                </dl>
                             </div>
                         </div>
-                    </div>
-                    {{ end }}
-
-                    <!-- Facebook -->
-                    {{ if index .platforms "facebook" }}
-                    <div class="bg-white overflow-hidden shadow rounded-lg">
-                        <div class="p-6">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0 bg-blue-600 rounded-md p-3">
-                                    <i class="fab fa-facebook text-white text-2xl"></i>
-                                </div>
-                                <div class="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt class="text-sm font-medium text-gray-500 truncate">
-                                            Facebook Page
-                                        </dt>
-                                        <dd class="flex items-baseline">
-                                            <div class="text-xs text-gray-400">Page Reviews</div>
-                                        </dd>
-                                    </dl>
-                                </div>
-                            </div>
-                            <div class="mt-4">
-                                {{ $connected := false }}
-                                {{ range .connections }}
-                                    {{ if eq .Platform "facebook" }}
-                                        {{ $connected = true }}
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center text-sm text-green-600">
-                                                <i class="fas fa-check-circle mr-2"></i>
-                                                Connected as {{ .PlatformAccountName }}
-                                            </div>
-                                            <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
-                                                Disconnect
-                                            </button>
+                        <div class="mt-4">
+                            {{ $connected := false }}
+                            {{ range .connections }}
+                                {{ if eq .Platform "facebook" }}
+                                    {{ $connected = true }}
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center text-sm text-green-600">
+                                            <i class="fas fa-check-circle mr-2"></i>
+                                            Connected as {{ .PlatformAccountName }}
                                         </div>
-                                        {{ if .LastSyncAt }}
-                                        <div class="mt-2 text-xs text-gray-500">
-                                            Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
-                                        </div>
-                                        {{ end }}
-                                        <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-                                            Sync Now
+                                        <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
+                                            Disconnect
                                         </button>
+                                    </div>
+                                    {{ if .LastSyncAt }}
+                                    <div class="mt-2 text-xs text-gray-500">
+                                        Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
+                                    </div>
                                     {{ end }}
+                                    <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                        Sync Now
+                                    </button>
                                 {{ end }}
-                                {{ if not $connected }}
-                                <a href="/api/social-media/connect/facebook" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                    Connect
-                                </a>
-                                {{ end }}
-                            </div>
+                            {{ end }}
+                            {{ if not $connected }}
+                            <a href="/api/social-media/connect/facebook" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                Connect
+                            </a>
+                            {{ end }}
                         </div>
                     </div>
-                    {{ end }}
-
-                    <!-- Instagram -->
-                    {{ if index .platforms "instagram" }}
-                    <div class="bg-white overflow-hidden shadow rounded-lg">
-                        <div class="p-6">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-600 rounded-md p-3">
-                                    <i class="fab fa-instagram text-white text-2xl"></i>
-                                </div>
-                                <div class="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt class="text-sm font-medium text-gray-500 truncate">
-                                            Instagram Business
-                                        </dt>
-                                        <dd class="flex items-baseline">
-                                            <div class="text-xs text-gray-400">Comments & Mentions</div>
-                                        </dd>
-                                    </dl>
-                                </div>
-                            </div>
-                            <div class="mt-4">
-                                {{ $connected := false }}
-                                {{ range .connections }}
-                                    {{ if eq .Platform "instagram" }}
-                                        {{ $connected = true }}
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center text-sm text-green-600">
-                                                <i class="fas fa-check-circle mr-2"></i>
-                                                Connected as {{ .PlatformAccountName }}
-                                            </div>
-                                            <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
-                                                Disconnect
-                                            </button>
-                                        </div>
-                                        {{ if .LastSyncAt }}
-                                        <div class="mt-2 text-xs text-gray-500">
-                                            Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
-                                        </div>
-                                        {{ end }}
-                                        <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-                                            Sync Now
-                                        </button>
-                                    {{ end }}
-                                {{ end }}
-                                {{ if not $connected }}
-                                <a href="/api/social-media/connect/instagram" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                    Connect
-                                </a>
-                                {{ end }}
-                            </div>
-                        </div>
-                    </div>
-                    {{ end }}
                 </div>
+                {{ end }}
 
-                <!-- Synced Reviews Section -->
-                <div class="bg-white shadow rounded-lg p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Synced Reviews</h3>
-                    <div id="synced-reviews" hx-get="/api/social-media/reviews?limit=10" hx-trigger="load" hx-indicator="#loading">
-                        <div id="loading" class="text-center py-8">
-                            <i class="fas fa-spinner fa-spin text-gray-400 text-2xl"></i>
-                            <p class="text-gray-500 mt-2">Loading reviews...</p>
+                <!-- Instagram -->
+                {{ if index .platforms "instagram" }}
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-600 rounded-md p-3">
+                                <i class="fab fa-instagram text-white text-2xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">
+                                        Instagram Business
+                                    </dt>
+                                    <dd class="flex items-baseline">
+                                        <div class="text-xs text-gray-400">Comments & Mentions</div>
+                                    </dd>
+                                </dl>
+                            </div>
                         </div>
+                        <div class="mt-4">
+                            {{ $connected := false }}
+                            {{ range .connections }}
+                                {{ if eq .Platform "instagram" }}
+                                    {{ $connected = true }}
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center text-sm text-green-600">
+                                            <i class="fas fa-check-circle mr-2"></i>
+                                            Connected as {{ .PlatformAccountName }}
+                                        </div>
+                                        <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
+                                            Disconnect
+                                        </button>
+                                    </div>
+                                    {{ if .LastSyncAt }}
+                                    <div class="mt-2 text-xs text-gray-500">
+                                        Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
+                                    </div>
+                                    {{ end }}
+                                    <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                        Sync Now
+                                    </button>
+                                {{ end }}
+                            {{ end }}
+                            {{ if not $connected }}
+                            <a href="/api/social-media/connect/instagram" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                Connect
+                            </a>
+                            {{ end }}
+                        </div>
+                    </div>
+                </div>
+                {{ end }}
+
+                <!-- Xiaohongshu (XHS) -->
+                {{ if index .platforms "xiaohongshu" }}
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-red-500 rounded-md p-3">
+                                <i class="fas fa-book text-white text-2xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">
+                                        Xiaohongshu (小红书)
+                                    </dt>
+                                    <dd class="flex items-baseline">
+                                        <div class="text-xs text-gray-400">Comments & Reviews</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            {{ $connected := false }}
+                            {{ range .connections }}
+                                {{ if eq .Platform "xiaohongshu" }}
+                                    {{ $connected = true }}
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center text-sm text-green-600">
+                                            <i class="fas fa-check-circle mr-2"></i>
+                                            Connected as {{ .PlatformAccountName }}
+                                        </div>
+                                        <button onclick="disconnectPlatform({{ .ID }})" class="text-red-600 hover:text-red-800 text-sm">
+                                            Disconnect
+                                        </button>
+                                    </div>
+                                    {{ if .LastSyncAt }}
+                                    <div class="mt-2 text-xs text-gray-500">
+                                        Last synced: {{ .LastSyncAt.Format "Jan 2, 2006 3:04 PM" }}
+                                    </div>
+                                    {{ end }}
+                                    <button onclick="triggerSync({{ .ID }})" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                        Sync Now
+                                    </button>
+                                {{ end }}
+                            {{ end }}
+                            {{ if not $connected }}
+                            <a href="/api/social-media/connect/xiaohongshu" class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                Connect
+                            </a>
+                            {{ end }}
+                        </div>
+                    </div>
+                </div>
+                {{ end }}
+            </div>
+
+            <!-- Synced Reviews Section -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Synced Reviews</h3>
+                <div id="synced-reviews" hx-get="/api/social-media/reviews?limit=10" hx-trigger="load" hx-indicator="#loading" hx-on::after-request="handleReviewsResponse(event)">
+                    <div id="loading" class="text-center py-8">
+                        <i class="fas fa-spinner fa-spin text-gray-400 text-2xl"></i>
+                        <p class="text-gray-500 mt-2">Loading reviews...</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        function disconnectPlatform(connectionId) {
-            if (!confirm('Are you sure you want to disconnect this platform?')) {
-                return;
+<script>
+    // Show error toast if error parameters exist
+    {{if .errorType}}
+    document.addEventListener('DOMContentLoaded', function() {
+        const errorType = '{{.errorType}}';
+        const platform = '{{.errorPlatform}}';
+        const message = '{{.errorMessage}}';
+
+        let toastType = 'error';
+        let title = 'Connection Failed';
+
+        if (errorType === 'rate_limit') {
+            toastType = 'warning';
+            title = 'Rate Limit Exceeded';
+        } else if (errorType === 'no_business') {
+            title = 'No Business Account';
+        }
+
+        // Show toast notification
+        iziToast.show({
+            class: toastType,
+            title: title,
+            message: message,
+            position: 'topRight',
+            timeout: 10000,
+            icon: toastType === 'error' ? 'fas fa-exclamation-circle' :
+                  toastType === 'warning' ? 'fas fa-clock' : 'fas fa-info-circle',
+            buttons: [
+                ['<button class="iziToast-button">Retry</button>', function (instance, toast) {
+                    instance.hide({
+                        transitionOut: 'fadeOut'
+                    }, toast, 'button');
+                    // Retry connection
+                    window.location.href = `/api/social-media/connect/${platform}`;
+                }]
+            ]
+        });
+    });
+    {{end}}
+
+    // Show success toast if success parameter exists
+    {{if .success}}
+    document.addEventListener('DOMContentLoaded', function() {
+        const platform = '{{.platform}}';
+        let platformName = platform;
+
+        if (platform === 'google_business') {
+            platformName = 'Google Business Profile';
+        } else if (platform === 'xiaohongshu') {
+            platformName = 'Xiaohongshu (小红书)';
+        }
+
+        iziToast.success({
+            title: 'Connected!',
+            message: `${platformName} has been successfully connected.`,
+            position: 'topRight',
+            timeout: 5000,
+            icon: 'fas fa-check-circle'
+        });
+    });
+    {{end}}
+
+    // Add custom styles for toast buttons
+    const style = document.createElement('style');
+    style.textContent = `
+        .iziToast-button {
+            background: #3B82F6;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 0 4px;
+        }
+        .iziToast-button:hover {
+            background: #2563EB;
+        }
+    `;
+    document.head.appendChild(style);
+
+    function disconnectPlatform(connectionId) {
+        if (!confirm('Are you sure you want to disconnect this platform?')) {
+            return;
+        }
+
+        fetch(`/api/social-media/connections/${connectionId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                alert(data.message);
+                window.location.reload();
+            } else if (data.error) {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while disconnecting the platform');
+        });
+    }
+
+    function triggerSync(connectionId) {
+        const button = document.querySelector(`button[onclick="triggerSync(${connectionId})"]`);
+        const originalText = button.textContent;
+
+        button.textContent = 'Syncing...';
+        button.disabled = true;
+
+        fetch(`/api/social-media/connections/${connectionId}/sync`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                alert(data.message);
+                window.location.reload();
+            } else if (data.error) {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while syncing');
+        })
+        .finally(() => {
+            button.textContent = originalText;
+            button.disabled = false;
+        });
+    }
+
+    // Handle reviews response from HTMX
+    function handleReviewsResponse(event) {
+        const xhr = event.detail.xhr;
+        const target = document.getElementById('synced-reviews');
+
+        if (xhr.status === 200) {
+            try {
+                // Try to parse as JSON
+                const response = JSON.parse(xhr.responseText);
+
+                if (response.reviews && response.reviews.length > 0) {
+                    // Render reviews
+                    renderReviews(response.reviews);
+                } else {
+                    // Show empty state
+                    target.innerHTML = `
+                        <div class="text-center py-8">
+                            <i class="fas fa-inbox text-gray-400 text-4xl mb-4"></i>
+                            <p class="text-gray-500">No reviews found. Connect a social media platform to start syncing reviews.</p>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                // Not JSON, treat as HTML (fallback)
+                target.innerHTML = xhr.responseText;
+            }
+        } else if (xhr.status >= 400) {
+            // Show error state
+            target.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-exclamation-triangle text-red-400 text-4xl mb-4"></i>
+                    <p class="text-gray-500">Failed to load reviews. Please try again later.</p>
+                    <button onclick="location.reload()" class="mt-4 text-blue-600 hover:text-blue-800 text-sm">
+                        <i class="fas fa-redo mr-1"></i>Retry
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    // Render reviews from JSON data
+    function renderReviews(reviews) {
+        const target = document.getElementById('synced-reviews');
+        let html = '<div class="space-y-4">';
+
+        reviews.forEach(review => {
+            // Platform badge styling
+            let platformBadge = '';
+            switch(review.platform) {
+                case 'google_business':
+                    platformBadge = 'bg-blue-100 text-blue-800';
+                    break;
+                case 'facebook':
+                    platformBadge = 'bg-blue-600 text-white';
+                    break;
+                case 'instagram':
+                    platformBadge = 'bg-pink-500 text-white';
+                    break;
+                case 'xiaohongshu':
+                    platformBadge = 'bg-red-500 text-white';
+                    break;
+                default:
+                    platformBadge = 'bg-gray-100 text-gray-800';
             }
 
-            fetch(`/api/social-media/connections/${connectionId}`, {
-                method: 'DELETE'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message) {
-                    alert(data.message);
-                    window.location.reload();
-                } else if (data.error) {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(error => {
-                alert('Failed to disconnect platform');
-                console.error(error);
+            // Format date
+            const reviewDate = new Date(review.reviewed_at).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
             });
-        }
 
-        function triggerSync(connectionId) {
-            const button = event.target;
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Syncing...';
+            // Rating stars
+            let starsHtml = '';
+            if (review.rating) {
+                const fullStars = Math.floor(review.rating);
+                const hasHalfStar = review.rating % 1 !== 0;
 
-            fetch(`/api/social-media/connections/${connectionId}/sync`, {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message) {
-                    alert(`Sync completed!\n\nFetched: ${data.stats.fetched}\nAdded: ${data.stats.added}\nUpdated: ${data.stats.updated}`);
-                    window.location.reload();
-                } else if (data.error) {
-                    alert('Sync failed: ' + data.error);
+                for (let i = 0; i < 5; i++) {
+                    if (i < fullStars) {
+                        starsHtml += '<i class="fas fa-star text-yellow-400"></i>';
+                    } else if (i === fullStars && hasHalfStar) {
+                        starsHtml += '<i class="fas fa-star-half-alt text-yellow-400"></i>';
+                    } else {
+                        starsHtml += '<i class="far fa-star text-gray-300"></i>';
+                    }
                 }
-                button.disabled = false;
-                button.innerHTML = 'Sync Now';
-            })
-            .catch(error => {
-                alert('Failed to sync');
-                console.error(error);
-                button.disabled = false;
-                button.innerHTML = 'Sync Now';
-            });
-        }
-    </script>
-</body>
-</html>
+                starsHtml += `<span class="ml-1 text-sm text-gray-500">${review.rating}</span>`;
+            }
+
+            html += `
+                <div class="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-start space-x-3">
+                        ${review.author_photo_url ?
+                            `<img src="${review.author_photo_url}" alt="${review.author_name || 'Reviewer'}" class="w-10 h-10 rounded-full">` :
+                            `<div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                <i class="fas fa-user text-gray-500"></i>
+                            </div>`
+                        }
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1">
+                                <h4 class="font-medium text-gray-900">${review.author_name || 'Anonymous'}</h4>
+                                ${starsHtml ? `<div class="flex items-center">${starsHtml}</div>` : ''}
+                            </div>
+                            ${review.review_text ? `<p class="text-gray-600 mt-1">${review.review_text}</p>` : ''}
+                            <div class="flex items-center justify-between mt-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${platformBadge}">
+                                    ${review.platform.toUpperCase()}
+                                </span>
+                                <span class="text-xs text-gray-500">${reviewDate}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        target.innerHTML = html;
+    }
+</script>
+{{end}}

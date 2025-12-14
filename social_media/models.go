@@ -98,6 +98,7 @@ const (
 	PlatformGoogleBusiness = "google_business"
 	PlatformFacebook       = "facebook"
 	PlatformInstagram      = "instagram"
+	PlatformXiaohongshu    = "xiaohongshu"
 )
 
 // Sync status constants
