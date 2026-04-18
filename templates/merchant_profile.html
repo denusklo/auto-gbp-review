@@ -231,12 +231,14 @@
                                 </div>
 
                                 <div>
-                                    <label for="waze_url" class="block text-sm font-medium text-gray-700">Waze
-                                        URL</label>
+                                    <label for="waze_url" class="block text-sm font-medium text-gray-400">Waze
+                                        URL <span class="text-gray-400">(disabled for now)</span></label>
                                     <input type="url" name="waze_url" id="waze_url"
                                         value="{{if .details}}{{.details.WazeURL}}{{end}}"
                                         placeholder="https://waze.com/ul/..."
-                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                        disabled
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-400 sm:text-sm">
+                                    <input type="hidden" name="waze_url" value="{{if .details}}{{.details.WazeURL}}{{end}}">
                                 </div>
 
                                 <!-- 2. Replace the existing logo_url section with this: -->
