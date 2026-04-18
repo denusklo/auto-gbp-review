@@ -20,7 +20,7 @@
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">{{.merchant.BusinessName}}</h1>
                     {{if .details.Address}}
-                    <p class="text-gray-600 mt-1">{{.details.Address}}</p>
+                    <a href="https://www.google.com/maps/search/?api=1&query={{.details.Address}}" target="_blank" class="text-gray-600 mt-1 hover:text-blue-600 hover:underline cursor-pointer block">{{.details.Address}}</a>
                     {{end}}
                 </div>
             </div>
