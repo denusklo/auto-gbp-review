@@ -71,7 +71,7 @@
 
                 <!-- Website Card -->
                 <div class="review-card {{if not .details.WebsiteURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
-                    {{if .details.WebsiteURL}}onclick="openLink('website')" {{end}} data-platform="website">
+                    {{if .details.WebsiteURL}}onclick="openLink('website')" {{end}} data-platform="website" data-url="{{.details.WebsiteURL}}">
                     <div class="p-6">
                         <!-- Mobile: side by side, Medium+: stacked -->
                         <div class="flex items-center md:flex-col md:text-center">
@@ -88,7 +88,7 @@
 
                 <!-- Instagram Card -->
                 <div class="review-card {{if not .details.InstagramURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
-                    {{if .details.InstagramURL}}onclick="openLink('instagram')" {{end}} data-platform="instagram">
+                    {{if .details.InstagramURL}}onclick="openLink('instagram')" {{end}} data-platform="instagram" data-url="{{.details.InstagramURL}}">
                     <div class="p-6">
                         <!-- Mobile: side by side, Medium+: stacked -->
                         <div class="flex items-center md:flex-col md:text-center">
@@ -105,7 +105,7 @@
 
                 <!-- TikTok Card -->
                 <div class="review-card {{if not .details.TiktokURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
-                    {{if .details.TiktokURL}}onclick="openLink('tiktok')" {{end}} data-platform="tiktok">
+                    {{if .details.TiktokURL}}onclick="openLink('tiktok')" {{end}} data-platform="tiktok" data-url="{{.details.TiktokURL}}">
                     <div class="p-6">
                         <!-- Mobile: side by side, Medium+: stacked -->
                         <div class="flex items-center md:flex-col md:text-center">
@@ -145,8 +145,8 @@
                 </div> -->
 
                 <!-- Google Maps Card -->
-                <div class="review-card {{if not .details.Address}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
-                    {{if .details.Address}}onclick="openLink('googlemaps')" {{end}} data-platform="googlemaps">
+                <div class="review-card {{if not .details.GoogleMapsURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.GoogleMapsURL}}onclick="openLink('googlemaps')" {{end}} data-platform="googlemaps" data-url="{{.details.GoogleMapsURL}}">
                     <div class="p-6">
                         <div class="flex items-center md:flex-col md:text-center">
                             <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
@@ -178,7 +178,7 @@
 
                 <!-- Xiao Hong Shu Card -->
                 <div class="review-card {{if not .details.XiaohongshuID}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
-                    {{if .details.XiaohongshuID}}onclick="openLink('xiaohongshu')" {{end}} data-platform="xiaohongshu">
+                    {{if .details.XiaohongshuID}}onclick="openLink('xiaohongshu')" {{end}} data-platform="xiaohongshu" data-url="{{.details.XiaohongshuID}}">
                     <div class="p-6">
                         <!-- Mobile: side by side, Medium+: stacked -->
                         <div class="flex items-center md:flex-col md:text-center">
@@ -429,31 +429,8 @@
     }
 
     function openLink(platform) {
-        let url = '';
-        switch (platform) {
-            case 'website':
-                url = {{js .details.WebsiteURL}};
-                break;
-            case 'instagram':
-                url = {{js .details.InstagramURL}};
-                break;
-            case 'tiktok':
-                url = {{js .details.TiktokURL}};
-                break;
-            case 'xiaohongshu':
-                url = {{js .details.XiaohongshuID}};
-                break;
-            case 'googlemaps':
-                {{if .details.GoogleMapsURL}}
-                url = {{js .details.GoogleMapsURL}};
-                {{end}}
-                break;
-            case 'waze':
-                {{if .details.WazeURL}}
-                url = {{js .details.WazeURL}};
-                {{end}}
-                break;
-        }
+        const card = document.querySelector('[data-platform="' + platform + '"]');
+        const url = card ? card.dataset.url : '';
 
         if (url) {
             window.open(url, '_blank');
