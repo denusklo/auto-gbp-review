@@ -145,37 +145,34 @@
                 </div> -->
 
                 <!-- Google Maps Card -->
-                <!-- <div class="review-card bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
-                    data-platform="googlemaps">
-                    <div class="p-4 text-center">
-                        <div class="w-12 h-12 mx-auto mb-3 bg-red-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-map-marker-alt text-red-600 text-xl"></i>
+                <div class="review-card {{if not .details.Address}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.Address}}onclick="openLink('googlemaps')" {{end}} data-platform="googlemaps">
+                    <div class="p-6">
+                        <div class="flex items-center md:flex-col md:text-center">
+                            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
+                                <i class="fas fa-map-marker-alt text-red-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4 md:ml-0">
+                                <h3 class="font-semibold text-gray-900 text-sm">Google Maps</h3>
+                                <p class="text-xs text-gray-500 mt-1">Get Directions</p>
+                            </div>
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-sm mb-3">Google Maps</h3>
-                        {{if .details.Address}}
-                        <div class="d-grid gap-1">
-                            <button onclick="openGoogleMapsDirections()" class="btn btn-outline-danger btn-sm">
-                                <i class="fas fa-route me-1"></i>Directions
-                            </button>
-                            <button onclick="openGoogleMapsSearch()" class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-search me-1"></i>Search
-                            </button>
-                        </div>
-                        {{else}}
-                        <p class="text-xs text-gray-500 mt-1">No Address</p>
-                        {{end}}
                     </div>
-                </div> -->
+                </div>
 
                 <!-- Waze Direction Card -->
                 <!-- <div class="review-card {{if not .details.Address}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
                     {{if .details.Address}}onclick="openLink('waze')" {{end}} data-platform="waze">
-                    <div class="p-6 text-center">
-                        <div class="w-12 h-12 mx-auto mb-3 bg-cyan-100 rounded-full flex items-center justify-center">
-                            <i class="fab fa-waze text-cyan-600 text-xl"></i>
+                    <div class="p-6">
+                        <div class="flex items-center md:flex-col md:text-center">
+                            <div class="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
+                                <i class="fab fa-waze text-cyan-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4 md:ml-0">
+                                <h3 class="font-semibold text-gray-900 text-sm">Waze</h3>
+                                <p class="text-xs text-gray-500 mt-1">Directions</p>
+                            </div>
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-sm">Waze</h3>
-                        <p class="text-xs text-gray-500 mt-1">Directions</p>
                     </div>
                 </div> -->
 
@@ -446,9 +443,14 @@
             case 'xiaohongshu':
                 url = {{js .details.XiaohongshuID}};
                 break;
+            case 'googlemaps':
+                {{if .details.GoogleMapsURL}}
+                url = {{js .details.GoogleMapsURL}};
+                {{end}}
+                break;
             case 'waze':
-                {{if .details.Address}}
-                url = 'https://waze.com/ul?q=' + encodeURIComponent({{js .details.Address}});
+                {{if .details.WazeURL}}
+                url = {{js .details.WazeURL}};
                 {{end}}
                 break;
         }
