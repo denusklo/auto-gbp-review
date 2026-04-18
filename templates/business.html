@@ -161,8 +161,8 @@
                 </div>
 
                 <!-- Waze Direction Card -->
-                <!-- <div class="review-card {{if not .details.Address}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
-                    {{if .details.Address}}onclick="openLink('waze')" {{end}} data-platform="waze">
+                <div class="review-card {{if not .details.WazeURL}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
+                    {{if .details.WazeURL}}onclick="openLink('waze')" {{end}} data-platform="waze" data-url="{{.details.WazeURL}}">
                     <div class="p-6">
                         <div class="flex items-center md:flex-col md:text-center">
                             <div class="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center flex-shrink-0 md:mx-auto md:mb-3">
@@ -174,7 +174,7 @@
                             </div>
                         </div>
                     </div>
-                </div> -->
+                </div>
 
                 <!-- Xiao Hong Shu Card -->
                 <div class="review-card {{if not .details.XiaohongshuID}}opacity-50 cursor-not-allowed{{else}}cursor-pointer hover:shadow-lg transform hover:-translate-y-1{{end}} bg-white rounded-xl shadow-md transition-all duration-300"
