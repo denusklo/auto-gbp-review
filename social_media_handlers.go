@@ -4,10 +4,13 @@ import (
 	"auto-gbp-review/social_media"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -97,7 +100,7 @@ func (h *SocialMediaHandlers) ConnectPlatform(c *gin.Context) {
 	platform := c.Param("platform")
 
 	// Get merchant ID from authenticated user
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
 		return
@@ -144,7 +147,7 @@ func (h *SocialMediaHandlers) OAuthCallback(c *gin.Context) {
 	}
 
 	// Get merchant ID from authenticated user
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.String(http.StatusUnauthorized, "Merchant not found")
 		return
@@ -224,7 +227,7 @@ func (h *SocialMediaHandlers) OAuthCallback(c *gin.Context) {
 
 // GetConnections returns all API connections for the merchant
 func (h *SocialMediaHandlers) GetConnections(c *gin.Context) {
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
 		return
@@ -248,7 +251,7 @@ func (h *SocialMediaHandlers) DisconnectPlatform(c *gin.Context) {
 		return
 	}
 
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
 		return
@@ -280,7 +283,7 @@ func (h *SocialMediaHandlers) TriggerSync(c *gin.Context) {
 		return
 	}
 
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
 		return
@@ -317,7 +320,7 @@ func (h *SocialMediaHandlers) TriggerSync(c *gin.Context) {
 
 // GetSyncedReviews returns synced reviews for the merchant
 func (h *SocialMediaHandlers) GetSyncedReviews(c *gin.Context) {
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
 		return
@@ -349,15 +352,56 @@ func (h *SocialMediaHandlers) GetSyncedReviews(c *gin.Context) {
 	// Get stats
 	stats, _ := smDB.GetMerchantReviewStats(merchantID)
 
+	// htmx loads this endpoint into the integrations page — return an HTML fragment
+	if c.GetHeader("HX-Request") != "" {
+		if len(reviews) == 0 {
+			c.String(http.StatusOK, `<p class="text-gray-500 text-center py-4">No synced reviews yet. Connect a platform and run a sync.</p>`)
+			return
+		}
+		var b strings.Builder
+		b.WriteString(`<ul class="divide-y divide-gray-200">`)
+		for _, r := range reviews {
+			rating := ""
+			if r.Rating != nil {
+				rating = fmt.Sprintf(" · %.0f★", *r.Rating)
+			}
+			b.WriteString(fmt.Sprintf(
+				`<li class="py-3"><p class="text-sm font-medium text-gray-900">%s <span class="text-gray-400">(%s%s)</span></p><p class="text-sm text-gray-600">%s</p></li>`,
+				template.HTMLEscapeString(r.AuthorName),
+				template.HTMLEscapeString(r.Platform),
+				rating,
+				template.HTMLEscapeString(r.ReviewText),
+			))
+		}
+		b.WriteString(`</ul>`)
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(b.String()))
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"reviews": reviews,
 		"stats":   stats,
 	})
 }
 
+// merchantIDFromContext resolves the merchant for the authenticated user.
+// The auth middleware only sets user_id (the auth.users UUID) — nothing ever
+// set "merchant_id", so every h.merchantIDFromContext(c) read returned 0.
+func (h *SocialMediaHandlers) merchantIDFromContext(c *gin.Context) int {
+	authUserID := c.GetString("user_id")
+	if authUserID == "" {
+		return 0
+	}
+	var id int
+	if err := h.db.QueryRow("SELECT id FROM merchants WHERE auth_user_id = $1 LIMIT 1", authUserID).Scan(&id); err != nil {
+		return 0
+	}
+	return id
+}
+
 // IntegrationsPage renders the integrations management page
 func (h *SocialMediaHandlers) IntegrationsPage(c *gin.Context) {
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.Redirect(http.StatusTemporaryRedirect, "/login")
 		return
@@ -391,7 +435,7 @@ func (h *SocialMediaHandlers) PublishPost(c *gin.Context) {
 		return
 	}
 
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
 		return
@@ -466,7 +510,7 @@ func (h *SocialMediaHandlers) ListPosts(c *gin.Context) {
 		return
 	}
 
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
 		return
@@ -503,7 +547,7 @@ func (h *SocialMediaHandlers) GetSyncLogs(c *gin.Context) {
 		return
 	}
 
-	merchantID := c.GetInt("merchant_id")
+	merchantID := h.merchantIDFromContext(c)
 	if merchantID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
 		return

@@ -16,6 +16,14 @@ type stubTransport struct {
 }
 
 func (s *stubTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// PublishPost first exchanges the user token for a page token via /me/accounts
+	if strings.HasSuffix(req.URL.Path, "/me/accounts") {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"data":[{"id":"123","access_token":"page-tok"}]}`)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	}
 	s.gotURL = req.URL.Scheme + "://" + req.URL.Host + req.URL.Path
 	body, _ := io.ReadAll(req.Body)
 	s.gotForm = map[string]string{}

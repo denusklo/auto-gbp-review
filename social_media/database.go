@@ -39,8 +39,8 @@ func (db *DB) GetAPIConnection(id int) (*APIConnection, error) {
 
 	query := `
 		SELECT id, merchant_id, platform, platform_account_id, platform_account_name,
-			access_token, refresh_token, token_expires_at, is_active, last_sync_at,
-			sync_status, error_message, created_at, updated_at
+			access_token, COALESCE(refresh_token, ''), token_expires_at, is_active, last_sync_at,
+			sync_status, COALESCE(error_message, ''), created_at, updated_at
 		FROM api_connections
 		WHERE id = $1
 	`
@@ -63,8 +63,8 @@ func (db *DB) GetAPIConnection(id int) (*APIConnection, error) {
 func (db *DB) GetAPIConnectionsByMerchant(merchantID int) ([]*APIConnection, error) {
 	query := `
 		SELECT id, merchant_id, platform, platform_account_id, platform_account_name,
-			access_token, refresh_token, token_expires_at, is_active, last_sync_at,
-			sync_status, error_message, created_at, updated_at
+			access_token, COALESCE(refresh_token, ''), token_expires_at, is_active, last_sync_at,
+			sync_status, COALESCE(error_message, ''), created_at, updated_at
 		FROM api_connections
 		WHERE merchant_id = $1
 		ORDER BY created_at DESC
@@ -105,8 +105,8 @@ func (db *DB) GetAPIConnectionByPlatform(merchantID int, platform string) (*APIC
 
 	query := `
 		SELECT id, merchant_id, platform, platform_account_id, platform_account_name,
-			access_token, refresh_token, token_expires_at, is_active, last_sync_at,
-			sync_status, error_message, created_at, updated_at
+			access_token, COALESCE(refresh_token, ''), token_expires_at, is_active, last_sync_at,
+			sync_status, COALESCE(error_message, ''), created_at, updated_at
 		FROM api_connections
 		WHERE merchant_id = $1 AND platform = $2
 		LIMIT 1
@@ -153,8 +153,8 @@ func (db *DB) DeleteAPIConnection(id int) error {
 func (db *DB) GetActiveConnections() ([]*APIConnection, error) {
 	query := `
 		SELECT id, merchant_id, platform, platform_account_id, platform_account_name,
-			access_token, refresh_token, token_expires_at, is_active, last_sync_at,
-			sync_status, error_message, created_at, updated_at
+			access_token, COALESCE(refresh_token, ''), token_expires_at, is_active, last_sync_at,
+			sync_status, COALESCE(error_message, ''), created_at, updated_at
 		FROM api_connections
 		WHERE is_active = true
 		ORDER BY last_sync_at ASC NULLS FIRST

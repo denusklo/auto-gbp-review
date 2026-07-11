@@ -312,10 +312,17 @@ func (p *FacebookProvider) FetchReviews(accessToken string, since time.Time) ([]
 // PublishPost publishes a text or photo post to a Facebook Page's feed.
 // If photoURL is non-empty, posts to /{page-id}/photos (message becomes the caption);
 // otherwise posts to /{page-id}/feed. Returns the created post ID.
-func (p *FacebookProvider) PublishPost(pageID, pageAccessToken, message, photoURL string) (string, error) {
+// Page posts require a Page access token, so the stored user token is exchanged
+// first (same pattern as FetchReviews).
+func (p *FacebookProvider) PublishPost(pageID, userAccessToken, message, photoURL string) (string, error) {
+	pageToken, err := p.getPageAccessToken(userAccessToken, pageID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get page access token: %w", err)
+	}
+
 	var endpoint string
 	params := url.Values{}
-	params.Add("access_token", pageAccessToken)
+	params.Add("access_token", pageToken)
 
 	if photoURL != "" {
 		endpoint = fmt.Sprintf("https://graph.facebook.com/v25.0/%s/photos", pageID)
