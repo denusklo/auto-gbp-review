@@ -16,9 +16,14 @@ type Database struct {
 func InitDatabase() (*Database, error) {
 	var connStr string
 
+	// Explicit DATABASE_URL wins (used by .env.local to reach the local Supabase DB;
+	// the SUPABASE_URL branch below hardcodes the production pooler host)
+	databaseURL := os.Getenv("DATABASE_URL")
 	// Check if using Supabase
 	supabaseURL := os.Getenv("SUPABASE_URL")
-	if supabaseURL != "" {
+	if databaseURL != "" {
+		connStr = databaseURL
+	} else if supabaseURL != "" {
 		projectID := extractProjectID(supabaseURL)
 		password := os.Getenv("SUPABASE_DB_PASSWORD")
 		if password == "" {

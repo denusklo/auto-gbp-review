@@ -57,6 +57,20 @@ type SyncLog struct {
 	CompletedAt     *time.Time `json:"completed_at"`
 }
 
+// PublishedPost represents a post published to a social media platform
+type PublishedPost struct {
+	ID              int       `json:"id"`
+	MerchantID      int       `json:"merchant_id"`
+	APIConnectionID *int      `json:"api_connection_id"`
+	Platform        string    `json:"platform"`
+	PlatformPostID  string    `json:"platform_post_id,omitempty"`
+	Content         string    `json:"content"`
+	PhotoURL        string    `json:"photo_url,omitempty"`
+	Status          string    `json:"status"` // 'pending', 'published', 'failed'
+	ErrorMessage    string    `json:"error_message,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
 // TokenResponse represents an OAuth token response
 type TokenResponse struct {
 	AccessToken  string    `json:"access_token"`

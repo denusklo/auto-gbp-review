@@ -18,6 +18,7 @@ type SocialMediaHandlers struct {
 	syncService *socialmedia.SyncService
 	scheduler   *socialmedia.Scheduler
 	providers   map[string]socialmedia.SocialMediaProvider
+	encryptor   *socialmedia.AESEncryptor
 }
 
 // NewSocialMediaHandlers creates a new social media handlers instance
@@ -80,6 +81,7 @@ func NewSocialMediaHandlers(db *Database) *SocialMediaHandlers {
 		syncService: syncService,
 		scheduler:   scheduler,
 		providers:   providers,
+		encryptor:   encryptor,
 	}
 }
 
@@ -373,6 +375,118 @@ func (h *SocialMediaHandlers) IntegrationsPage(c *gin.Context) {
 			"instagram":       os.Getenv("FACEBOOK_APP_ID") != "",
 		},
 	})
+}
+
+// PublishPostRequest is the body for POST /connections/:id/posts
+type PublishPostRequest struct {
+	Message  string `json:"message" binding:"required"`
+	PhotoURL string `json:"photo_url"`
+}
+
+// PublishPost publishes a post to a connected Facebook Page and records the result
+func (h *SocialMediaHandlers) PublishPost(c *gin.Context) {
+	connectionID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid connection ID"})
+		return
+	}
+
+	merchantID := c.GetInt("merchant_id")
+	if merchantID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
+		return
+	}
+
+	var req PublishPostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "message is required"})
+		return
+	}
+
+	smDB := socialmedia.NewDB(h.db.DB)
+
+	// Verify connection belongs to merchant and is Facebook
+	connection, err := smDB.GetAPIConnection(connectionID)
+	if err != nil || connection.MerchantID != merchantID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Connection not found"})
+		return
+	}
+	if connection.Platform != socialmedia.PlatformFacebook {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Connection is not a Facebook page"})
+		return
+	}
+
+	fbProvider, ok := h.providers[socialmedia.PlatformFacebook].(*socialmedia.FacebookProvider)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Facebook provider not configured"})
+		return
+	}
+
+	pageAccessToken, err := h.encryptor.Decrypt(connection.AccessToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decrypt token"})
+		return
+	}
+
+	post := &socialmedia.PublishedPost{
+		MerchantID:      merchantID,
+		APIConnectionID: &connectionID,
+		Platform:        socialmedia.PlatformFacebook,
+		Content:         req.Message,
+		PhotoURL:        req.PhotoURL,
+	}
+
+	postID, pubErr := fbProvider.PublishPost(connection.PlatformAccountID, pageAccessToken, req.Message, req.PhotoURL)
+	if pubErr != nil {
+		post.Status = "failed"
+		post.ErrorMessage = pubErr.Error()
+	} else {
+		post.Status = "published"
+		post.PlatformPostID = postID
+	}
+
+	if err := smDB.CreatePublishedPost(post); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record post"})
+		return
+	}
+
+	if pubErr != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to publish post", "details": pubErr.Error(), "post": post})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"post": post})
+}
+
+// ListPosts returns published posts for a connection
+func (h *SocialMediaHandlers) ListPosts(c *gin.Context) {
+	connectionID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid connection ID"})
+		return
+	}
+
+	merchantID := c.GetInt("merchant_id")
+	if merchantID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Merchant not found"})
+		return
+	}
+
+	smDB := socialmedia.NewDB(h.db.DB)
+
+	connection, err := smDB.GetAPIConnection(connectionID)
+	if err != nil || connection.MerchantID != merchantID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Connection not found"})
+		return
+	}
+
+	posts, err := smDB.GetPublishedPostsByConnection(connectionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get posts"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"posts": posts})
 }
 
 // AdminConnectionsPage shows all connections for admin

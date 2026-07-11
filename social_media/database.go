@@ -510,3 +510,55 @@ func (db *DB) GetMerchantReviewStats(merchantID int) (map[string]interface{}, er
 
 	return stats, nil
 }
+
+// Published Posts
+
+// CreatePublishedPost inserts a published_posts row and fills in ID/CreatedAt.
+func (db *DB) CreatePublishedPost(post *PublishedPost) error {
+	query := `
+		INSERT INTO published_posts (
+			merchant_id, api_connection_id, platform, platform_post_id,
+			content, photo_url, status, error_message
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, created_at
+	`
+	return db.conn.QueryRow(
+		query,
+		post.MerchantID, post.APIConnectionID, post.Platform, post.PlatformPostID,
+		post.Content, post.PhotoURL, post.Status, post.ErrorMessage,
+	).Scan(&post.ID, &post.CreatedAt)
+}
+
+// GetPublishedPostsByConnection lists published_posts rows for an API connection, newest first.
+func (db *DB) GetPublishedPostsByConnection(apiConnectionID int) ([]*PublishedPost, error) {
+	query := `
+		SELECT id, merchant_id, api_connection_id, platform, platform_post_id,
+			content, photo_url, status, error_message, created_at
+		FROM published_posts
+		WHERE api_connection_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := db.conn.Query(query, apiConnectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []*PublishedPost
+	for rows.Next() {
+		post := &PublishedPost{}
+		var apiConnID sql.NullInt64
+		if err := rows.Scan(
+			&post.ID, &post.MerchantID, &apiConnID, &post.Platform, &post.PlatformPostID,
+			&post.Content, &post.PhotoURL, &post.Status, &post.ErrorMessage, &post.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if apiConnID.Valid {
+			id := int(apiConnID.Int64)
+			post.APIConnectionID = &id
+		}
+		posts = append(posts, post)
+	}
+	return posts, rows.Err()
+}

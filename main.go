@@ -183,6 +183,10 @@ func InitRoutes(router *gin.Engine, db *Database) {
 			socialMedia.POST("/connections/:id/sync", socialMediaHandlers.TriggerSync)
 			socialMedia.GET("/connections/:id/logs", socialMediaHandlers.GetSyncLogs)
 
+			// Publishing (Facebook Page posts)
+			socialMedia.POST("/connections/:id/posts", socialMediaHandlers.PublishPost)
+			socialMedia.GET("/connections/:id/posts", socialMediaHandlers.ListPosts)
+
 			// Synced reviews
 			socialMedia.GET("/reviews", socialMediaHandlers.GetSyncedReviews)
 		}

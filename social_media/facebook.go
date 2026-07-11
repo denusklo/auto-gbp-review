@@ -34,19 +34,19 @@ func (p *FacebookProvider) GetPlatformName() string {
 
 // GetAuthorizationURL returns the OAuth authorization URL
 func (p *FacebookProvider) GetAuthorizationURL(state string) string {
-	baseURL := "https://www.facebook.com/v18.0/dialog/oauth"
+	baseURL := "https://www.facebook.com/v25.0/dialog/oauth"
 	params := url.Values{}
 	params.Add("client_id", p.appID)
 	params.Add("redirect_uri", p.redirectURI)
 	params.Add("state", state)
-	params.Add("scope", "pages_show_list,pages_read_engagement,pages_manage_metadata")
+	params.Add("scope", "pages_show_list,pages_read_engagement,pages_manage_metadata,pages_manage_posts")
 
 	return fmt.Sprintf("%s?%s", baseURL, params.Encode())
 }
 
 // ExchangeCodeForToken exchanges an authorization code for access token
 func (p *FacebookProvider) ExchangeCodeForToken(code string) (*TokenResponse, error) {
-	tokenURL := "https://graph.facebook.com/v18.0/oauth/access_token"
+	tokenURL := "https://graph.facebook.com/v25.0/oauth/access_token"
 	params := url.Values{}
 	params.Add("client_id", p.appID)
 	params.Add("client_secret", p.appSecret)
@@ -95,7 +95,7 @@ func (p *FacebookProvider) getLongLivedToken(shortLivedToken string) (*struct {
 	TokenType   string `json:"token_type"`
 	ExpiresIn   int    `json:"expires_in"`
 }, error) {
-	tokenURL := "https://graph.facebook.com/v18.0/oauth/access_token"
+	tokenURL := "https://graph.facebook.com/v25.0/oauth/access_token"
 	params := url.Values{}
 	params.Add("grant_type", "fb_exchange_token")
 	params.Add("client_id", p.appID)
@@ -144,7 +144,7 @@ func (p *FacebookProvider) RefreshToken(refreshToken string) (*TokenResponse, er
 
 // ValidateToken checks if an access token is still valid
 func (p *FacebookProvider) ValidateToken(accessToken string) (bool, error) {
-	debugURL := fmt.Sprintf("https://graph.facebook.com/v18.0/debug_token?input_token=%s&access_token=%s|%s",
+	debugURL := fmt.Sprintf("https://graph.facebook.com/v25.0/debug_token?input_token=%s&access_token=%s|%s",
 		accessToken, p.appID, p.appSecret)
 
 	resp, err := p.httpClient.Get(debugURL)
@@ -174,7 +174,7 @@ func (p *FacebookProvider) ValidateToken(accessToken string) (bool, error) {
 // GetAccountInfo retrieves Facebook Page information
 func (p *FacebookProvider) GetAccountInfo(accessToken string) (*AccountInfo, error) {
 	// Get user's pages
-	pagesURL := fmt.Sprintf("https://graph.facebook.com/v18.0/me/accounts?access_token=%s", accessToken)
+	pagesURL := fmt.Sprintf("https://graph.facebook.com/v25.0/me/accounts?access_token=%s", accessToken)
 
 	resp, err := p.httpClient.Get(pagesURL)
 	if err != nil {
@@ -227,7 +227,7 @@ func (p *FacebookProvider) FetchReviews(accessToken string, since time.Time) ([]
 	}
 
 	// Fetch ratings and reviews
-	reviewsURL := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/ratings?fields=reviewer,created_time,rating,review_text,recommendation_type,open_graph_story&access_token=%s",
+	reviewsURL := fmt.Sprintf("https://graph.facebook.com/v25.0/%s/ratings?fields=reviewer,created_time,rating,review_text,recommendation_type,open_graph_story&access_token=%s",
 		accountInfo.AccountID, pageToken)
 
 	// Add since parameter if provided
@@ -309,9 +309,56 @@ func (p *FacebookProvider) FetchReviews(accessToken string, since time.Time) ([]
 	return reviews, nil
 }
 
+// PublishPost publishes a text or photo post to a Facebook Page's feed.
+// If photoURL is non-empty, posts to /{page-id}/photos (message becomes the caption);
+// otherwise posts to /{page-id}/feed. Returns the created post ID.
+func (p *FacebookProvider) PublishPost(pageID, pageAccessToken, message, photoURL string) (string, error) {
+	var endpoint string
+	params := url.Values{}
+	params.Add("access_token", pageAccessToken)
+
+	if photoURL != "" {
+		endpoint = fmt.Sprintf("https://graph.facebook.com/v25.0/%s/photos", pageID)
+		params.Add("url", photoURL)
+		params.Add("caption", message)
+	} else {
+		endpoint = fmt.Sprintf("https://graph.facebook.com/v25.0/%s/feed", pageID)
+		params.Add("message", message)
+	}
+
+	resp, err := p.httpClient.PostForm(endpoint, params)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to publish post: %s - %s", resp.Status, string(body))
+	}
+
+	var result struct {
+		ID      string `json:"id"`
+		PostID  string `json:"post_id"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", err
+	}
+
+	// /photos returns "id" (photo id) and "post_id" (the feed post id); prefer post_id when present.
+	if result.PostID != "" {
+		return result.PostID, nil
+	}
+	return result.ID, nil
+}
+
 // getPageAccessToken gets the page access token for a specific page
 func (p *FacebookProvider) getPageAccessToken(userAccessToken, pageID string) (string, error) {
-	pagesURL := fmt.Sprintf("https://graph.facebook.com/v18.0/me/accounts?access_token=%s", userAccessToken)
+	pagesURL := fmt.Sprintf("https://graph.facebook.com/v25.0/me/accounts?access_token=%s", userAccessToken)
 
 	resp, err := p.httpClient.Get(pagesURL)
 	if err != nil {
