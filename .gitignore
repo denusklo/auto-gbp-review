@@ -14,6 +14,8 @@ tmp/
 
 # Environment variables
 .env
+.env.local
+.env.production
 
 # Go workspace file
 go.work
@@ -88,3 +90,11 @@ auto-gbp-review
 # Claude Code settings
 .claude/settings.json
 .claude/
+
+# --- Claude Code harness: keep institutional files in git ---
+# (overrides the *.md, /CLAUDE.md and .claude/ excludes above; order matters)
+!CLAUDE.md
+!.claude/
+.claude/*
+!.claude/rules/
+!.claude/rules/**
