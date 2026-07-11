@@ -33,9 +33,11 @@
                         </div>
                         <div class="p-6 space-y-6">
                             {{if .error}}
-                            <div class="bg-red-50 border border-red-200 rounded-md p-4">
-                                <div class="text-sm text-red-700">{{.error}}</div>
-                            </div>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function () {
+                                    iziToast.error({ title: 'Error', message: "{{.error}}", icon: 'fas fa-exclamation-circle', timeout: 7000 });
+                                });
+                            </script>
                             {{end}}
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

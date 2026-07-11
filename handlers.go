@@ -110,8 +110,18 @@ func (h *Handlers) BusinessPage(c *gin.Context, businessID string) {
 		wazeURL = utils.GenerateWazeURL(merchant.BusinessName, details.Address, googlePlaceID)
 	}
 
+	// OAuth-connected Facebook Page → exact reviews-tab deep link
+	facebookReviewURL := ""
+	var fbPageID string
+	h.db.QueryRow(`SELECT platform_account_id FROM api_connections
+		WHERE merchant_id = $1 AND platform = 'facebook' AND is_active`, merchant.ID).Scan(&fbPageID)
+	if fbPageID != "" {
+		facebookReviewURL = fmt.Sprintf("https://www.facebook.com/profile.php?id=%s&sk=reviews", fbPageID)
+	}
+
 	renderPage(c, "templates/layouts/base.html", "templates/business.html", gin.H{
 		"title":           merchant.BusinessName,
+		"facebookReviewURL": facebookReviewURL,
 		"merchant":        merchant,
 		"details":         details,
 		"reviews":         reviews,
@@ -646,13 +656,39 @@ func (h *Handlers) MerchantProfile(c *gin.Context) {
 		reviews, _ = h.getReviewsByMerchantID(merchant.ID)
 	}
 
+	// Connected Facebook Page overrides the manual URL (field becomes read-only)
+	facebookPageURL := ""
+	if merchant != nil {
+		var fbPageID string
+		h.db.QueryRow(`SELECT platform_account_id FROM api_connections
+			WHERE merchant_id = $1 AND platform = 'facebook' AND is_active`, merchant.ID).Scan(&fbPageID)
+		if fbPageID != "" {
+			facebookPageURL = fmt.Sprintf("https://www.facebook.com/profile.php?id=%s&sk=reviews", fbPageID)
+		}
+	}
+
 	renderPage(c, "templates/layouts/base.html", "templates/merchant_profile.html", gin.H{
-		"title":     "Profile",
-		"merchant":  merchant,
-		"details":   details,
-		"reviews":   reviews,
-		"userEmail": userEmail,
+		"title":           "Profile",
+		"merchant":        merchant,
+		"details":         details,
+		"reviews":         reviews,
+		"userEmail":       userEmail,
+		"facebookPageURL": facebookPageURL,
 	})
+}
+
+// hxErrorToast responds to an htmx request with error toasts via the HX-Trigger
+// header (rendered by the generic showToast listener in base.html). No body.
+func hxErrorToast(c *gin.Context, status int, messages []string) {
+	payload, _ := json.Marshal(gin.H{"showToast": gin.H{
+		"type":     "error",
+		"title":    "Error",
+		"messages": messages,
+		"icon":     "fas fa-exclamation-circle",
+		"timeout":  7000,
+	}})
+	c.Header("HX-Trigger", string(payload))
+	c.Status(status)
 }
 
 // Replace your existing UpdateMerchantProfile function in handlers.go with this:
@@ -671,24 +707,12 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		errors = append(errors, "URL Slug is required")
 	}
 
+
 	// If there are validation errors, return them
 	if len(errors) > 0 {
-		// Check if this is an AJAX request
+		// htmx request: error toasts via HX-Trigger header
 		if c.GetHeader("HX-Request") != "" {
-			// Return HTML with JavaScript to show error toasts
-			var errorJS string
-			for _, error := range errors {
-				errorJS += fmt.Sprintf(`
-					iziToast.error({
-						title: 'Validation Error',
-						message: '%s',
-						icon: 'fas fa-exclamation-circle',
-						timeout: 7000,
-					});`, error)
-			}
-			html := fmt.Sprintf("<script>%s</script>", errorJS)
-			c.Header("Content-Type", "text/html")
-			c.String(http.StatusBadRequest, html)
+			hxErrorToast(c, http.StatusBadRequest, errors)
 			return
 		}
 
@@ -716,10 +740,7 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 	merchants, err := h.getMerchantsByAuthUserID(userID)
 	if err != nil {
 		if c.GetHeader("HX-Request") != "" {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"errors":  []string{"Failed to load your business"},
-			})
+			hxErrorToast(c, http.StatusInternalServerError, []string{"Failed to load your business"})
 			return
 		}
 		renderPage(c, "templates/layouts/base.html", "templates/error.html", gin.H{
@@ -736,10 +757,7 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		merchantID, err = h.createMerchantWithAuthUserID(userID, businessName, slug)
 		if err != nil {
 			if c.GetHeader("HX-Request") != "" {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"success": false,
-					"errors":  []string{"Failed to create business: " + err.Error()},
-				})
+				hxErrorToast(c, http.StatusInternalServerError, []string{"Failed to create business: " + err.Error()})
 				return
 			}
 			renderPage(c, "templates/layouts/base.html", "templates/merchant_profile.html", gin.H{
@@ -761,10 +779,7 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		err = h.updateMerchant(merchantID, businessName, slug, true)
 		if err != nil {
 			if c.GetHeader("HX-Request") != "" {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"success": false,
-					"errors":  []string{"Failed to update business: " + err.Error()},
-				})
+				hxErrorToast(c, http.StatusInternalServerError, []string{"Failed to update business: " + err.Error()})
 				return
 			}
 			renderPage(c, "templates/layouts/base.html", "templates/merchant_profile.html", gin.H{
@@ -788,10 +803,7 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		contentType := header.Header.Get("Content-Type")
 		if !strings.HasPrefix(contentType, "image/") {
 			if c.GetHeader("HX-Request") != "" {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"errors":  []string{"Please upload an image file (jpg, png, gif, webp)"},
-				})
+				hxErrorToast(c, http.StatusBadRequest, []string{"Please upload an image file (jpg, png, gif, webp)"})
 				return
 			}
 			// Get existing data for redisplay
@@ -815,6 +827,10 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		// Upload to Supabase using the function from storage.go
 		logoURL, err = uploadToSupabase(file, header, "logos")
 		if err != nil {
+			if c.GetHeader("HX-Request") != "" {
+				hxErrorToast(c, http.StatusBadRequest, []string{"Failed to upload logo: " + err.Error()})
+				return
+			}
 			// Get existing data for redisplay
 			merchants, _ := h.getMerchantsByAuthUserID(userID)
 			var merchant *Merchant
@@ -891,18 +907,10 @@ func (h *Handlers) UpdateMerchantProfile(c *gin.Context) {
 		}
 	}
 
-	// Check if this is an AJAX request
+	// htmx request: toast via HX-Trigger header (generic showToast listener in base.html)
 	if c.GetHeader("HX-Request") != "" {
-		// Return HTML with JavaScript to show toast
-		html := `<script>
-			iziToast.success({
-				title: 'Profile Updated!',
-				message: 'Your business profile has been successfully saved.',
-				icon: 'fas fa-save',
-			});
-		</script>`
-		c.Header("Content-Type", "text/html")
-		c.String(http.StatusOK, html)
+		c.Header("HX-Trigger", `{"showToast":{"type":"success","title":"Profile Updated!","message":"Your business profile has been successfully saved.","icon":"fas fa-save"}}`)
+		c.Status(http.StatusNoContent)
 		return
 	}
 
@@ -1678,7 +1686,13 @@ func (h *Handlers) GetReviewModal(c *gin.Context) {
 			writeURL = fmt.Sprintf("https://www.google.com/maps/search/%s", url.QueryEscape(merchant.BusinessName))
 		}
 	} else if platform == "facebook" {
-		if details.FacebookURL != "" {
+		// Prefer the OAuth-connected Page: exact reviews-tab deep link, zero merchant setup
+		var pageID string
+		h.db.QueryRow(`SELECT platform_account_id FROM api_connections
+			WHERE merchant_id = $1 AND platform = 'facebook' AND is_active`, merchantID).Scan(&pageID)
+		if pageID != "" {
+			writeURL = fmt.Sprintf("https://www.facebook.com/profile.php?id=%s&sk=reviews", pageID)
+		} else if details.FacebookURL != "" {
 			writeURL = details.FacebookURL
 		} else if merchant != nil {
 			writeURL = fmt.Sprintf("https://www.facebook.com/search/top?q=%s", url.QueryEscape(merchant.BusinessName))

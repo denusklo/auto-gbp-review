@@ -59,9 +59,29 @@
             iconClass: null,
         });
 
+        // Generic toast via HX-Trigger response header:
+        // HX-Trigger: {"showToast":{"type":"success","title":"...","message":"...","icon":"..."}}
+        document.body.addEventListener('showToast', function (e) {
+            const d = e.detail || {};
+            const messages = d.messages || [d.message || ''];
+            const kind = typeof iziToast[d.type] === 'function' ? d.type : 'info';
+            messages.forEach(function (msg) {
+                // must be called as a method (iziToast.xxx) — detaching breaks `this` internally
+                iziToast[kind]({
+                    title: d.title || '',
+                    message: msg,
+                    icon: d.icon || null,
+                    timeout: d.timeout || 5000,
+                });
+            });
+        });
+
         // Basic utilities for HTMX
         document.addEventListener('htmx:responseError', function (e) {
             console.error('HTMX Error:', e.detail);
+            // Responses that carry their own toast via HX-Trigger need no generic one
+            const trigger = e.detail.xhr.getResponseHeader('HX-Trigger');
+            if (trigger && trigger.indexOf('showToast') !== -1) return;
             iziToast.error({
                 title: 'Error',
                 message: 'Something went wrong. Please try again.',

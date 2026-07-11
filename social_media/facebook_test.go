@@ -25,7 +25,10 @@ func (s *stubTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}, nil
 	}
 	s.gotURL = req.URL.Scheme + "://" + req.URL.Host + req.URL.Path
-	body, _ := io.ReadAll(req.Body)
+	var body []byte
+	if req.Body != nil {
+		body, _ = io.ReadAll(req.Body)
+	}
 	s.gotForm = map[string]string{}
 	for _, pair := range strings.Split(string(body), "&") {
 		if k, v, ok := strings.Cut(pair, "="); ok {
@@ -77,6 +80,23 @@ func TestPublishPostPhotoGoesToPhotosAndPrefersPostID(t *testing.T) {
 	}
 	if st.gotForm["caption"] != "caption" {
 		t.Errorf("caption = %q", st.gotForm["caption"])
+	}
+}
+
+func TestValidateTokenNeverExpiring(t *testing.T) {
+	// Facebook debug_token returns expires_at:0 for never-expiring tokens — must be valid
+	p, _ := newStubbedProvider(`{"data":{"is_valid":true,"expires_at":0}}`, http.StatusOK)
+	valid, err := p.ValidateToken("tok")
+	if err != nil || !valid {
+		t.Errorf("never-expiring token: valid=%v err=%v, want valid=true", valid, err)
+	}
+}
+
+func TestValidateTokenInvalid(t *testing.T) {
+	p, _ := newStubbedProvider(`{"data":{"is_valid":false,"expires_at":0}}`, http.StatusOK)
+	valid, _ := p.ValidateToken("tok")
+	if valid {
+		t.Error("invalid token reported as valid")
 	}
 }
 

@@ -8,6 +8,8 @@
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- iziToast CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/izitoast@1.4.0/dist/css/iziToast.min.css">
     <style>
         [x-cloak] {
             display: none !important;
@@ -21,6 +23,22 @@
             {{template "auth_content" .}}
         </div>
     </div>
+    <!-- iziToast JS -->
+    <script src="https://cdn.jsdelivr.net/npm/izitoast@1.4.0/dist/js/iziToast.min.js"></script>
+    <script>
+        // Initialize iziToast default settings
+        iziToast.settings({
+            timeout: 5000,
+            resetOnHover: true,
+            icon: 'font-awesome',
+            transitionIn: 'fadeInDown',
+            transitionOut: 'fadeOutUp',
+            position: 'topRight',
+            layout: 2,
+            iconUrl: null, // We'll use iconClass instead
+            iconClass: null,
+        });
+    </script>
     <script>
         // Basic utilities for HTMX
         document.addEventListener('htmx:responseError', function (e) {

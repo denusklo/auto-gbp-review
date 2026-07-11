@@ -39,7 +39,7 @@ func (p *FacebookProvider) GetAuthorizationURL(state string) string {
 	params.Add("client_id", p.appID)
 	params.Add("redirect_uri", p.redirectURI)
 	params.Add("state", state)
-	params.Add("scope", "pages_show_list,pages_read_engagement,pages_manage_metadata,pages_manage_posts")
+	params.Add("scope", "pages_show_list,pages_read_engagement,pages_manage_metadata,pages_manage_posts,pages_read_user_content")
 
 	return fmt.Sprintf("%s?%s", baseURL, params.Encode())
 }
@@ -168,7 +168,11 @@ func (p *FacebookProvider) ValidateToken(accessToken string) (bool, error) {
 		return false, err
 	}
 
-	return result.Data.IsValid && result.Data.ExpiresAt > time.Now().Unix(), nil
+	// expires_at == 0 means the token never expires (long-lived page/user tokens)
+	if !result.Data.IsValid {
+		return false, nil
+	}
+	return result.Data.ExpiresAt == 0 || result.Data.ExpiresAt > time.Now().Unix(), nil
 }
 
 // GetAccountInfo retrieves Facebook Page information

@@ -356,8 +356,11 @@
                         }
                         break;
                     case 'facebook':
+                        const fbReviewURL1 = "{{.facebookReviewURL}}";
                         const facebookURL = {{js .details.FacebookURL}};
-                        if (facebookURL) {
+                        if (fbReviewURL1) {
+                            url = fbReviewURL1;
+                        } else if (facebookURL) {
                             url = `${facebookURL}reviews`;
                         } else {
                             url = `https://www.facebook.com/search/top?q=${encodeURIComponent(businessName)}`;
@@ -399,8 +402,11 @@
                 }
                 break;
             case 'facebook':
+                const fbReviewURL2 = "{{.facebookReviewURL}}";
                 const facebookURL = {{js .details.FacebookURL}};
-                if (facebookURL) {
+                if (fbReviewURL2) {
+                    url = fbReviewURL2;
+                } else if (facebookURL) {
                     url = facebookURL;
                 } else {
                     url = `https://www.facebook.com/search/top?q=${encodeURIComponent(businessName)}`;
