@@ -1,16 +1,15 @@
-package main
+package auth
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
-	"os/exec"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	supa "github.com/nedpals/supabase-go"
+	"github.com/supabase-community/gotrue-go/types"
 )
 
 // JWTClaims represents the custom claims in the Supabase JWT
@@ -78,18 +77,18 @@ func extractRoleFromJWT(tokenString string) (string, error) {
 
 // SupabaseLogin handles user login with Supabase Auth
 func SupabaseLogin(c *gin.Context) {
+	if !sameOrigin(c) {
+		c.String(http.StatusForbidden, "Sign-in must be submitted from this site.")
+		return
+	}
 	email := c.PostForm("email")
 	password := c.PostForm("password")
 
 	client := GetSupabaseClient()
-	ctx := context.Background()
-	
-	// Sign in with email and password
-	user, err := client.Auth.SignIn(ctx, supa.UserCredentials{
-		Email:    email,
-		Password: password,
-	})
-	
+
+	// Use Auth directly: the top-level sign-in method mutates shared session state.
+	user, err := client.Auth.SignInWithEmailPassword(email, password)
+
 	if err != nil {
 		renderPage(c, "templates/layouts/auth.html", "templates/auth/login.html", gin.H{
 			"error": "Invalid credentials",
@@ -98,8 +97,8 @@ func SupabaseLogin(c *gin.Context) {
 	}
 
 	// Set the access token as a cookie
-	c.SetCookie("sb_access_token", user.AccessToken, 3600, "/", "", false, true)
-	c.SetCookie("sb_refresh_token", user.RefreshToken, 86400*7, "/", "", false, true)
+	authCookie(c, "sb_access_token", user.AccessToken, 3600)
+	authCookie(c, "sb_refresh_token", user.RefreshToken, 86400*7)
 
 	// Get user role from JWT custom claims (injected by Auth Hook)
 	role, err := extractRoleFromJWT(user.AccessToken)
@@ -121,7 +120,7 @@ func SupabaseRegister(c *gin.Context) {
 	email := c.PostForm("email")
 	password := c.PostForm("password")
 	confirmPassword := c.PostForm("confirm_password")
-	
+
 	if password != confirmPassword {
 		renderPage(c, "templates/layouts/auth.html", "templates/auth/register.html", gin.H{
 			"error": "Passwords do not match",
@@ -130,17 +129,16 @@ func SupabaseRegister(c *gin.Context) {
 	}
 
 	client := GetSupabaseClient()
-	ctx := context.Background()
-	
+
 	// Sign up with email and password
-	_, err := client.Auth.SignUp(ctx, supa.UserCredentials{
+	_, err := client.Auth.Signup(types.SignupRequest{
 		Email:    email,
 		Password: password,
 		Data: map[string]interface{}{
 			"role": "merchant",
 		},
 	})
-	
+
 	if err != nil {
 		errorMsg := "Registration failed"
 		if strings.Contains(err.Error(), "already registered") {
@@ -151,7 +149,7 @@ func SupabaseRegister(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Registration successful - always show success message
 	// Supabase will send confirmation email if required
 	renderPage(c, "templates/layouts/auth.html", "templates/auth/register.html", gin.H{
@@ -161,23 +159,26 @@ func SupabaseRegister(c *gin.Context) {
 
 // SupabaseLogout handles user logout
 func SupabaseLogout(c *gin.Context) {
+	if !sameOrigin(c) {
+		c.String(http.StatusForbidden, "Sign-out must be submitted from this site.")
+		return
+	}
 	accessToken, _ := c.Cookie("sb_access_token")
-	
+
 	if accessToken != "" {
 		client := GetSupabaseClient()
-		ctx := context.Background()
-		err := client.Auth.SignOut(ctx, accessToken)
+		err := client.Auth.WithToken(accessToken).Logout()
 		if err != nil {
 			// Log error but continue with logout
-			fmt.Printf("Logout error: %v\n", err)
+			log.Print("Supabase logout failed")
 		}
 	}
-	
+
 	// Clear cookies
-	c.SetCookie("sb_access_token", "", -1, "/", "", false, true)
-	c.SetCookie("sb_refresh_token", "", -1, "/", "", false, true)
-	c.SetCookie("auth_token", "", -1, "/", "", false, true) // Clear old JWT cookie too
-	
+	authCookie(c, "sb_access_token", "", -1)
+	authCookie(c, "sb_refresh_token", "", -1)
+	authCookie(c, "auth_token", "", -1) // Clear old JWT cookie too
+
 	c.Redirect(http.StatusFound, "/")
 }
 
@@ -191,33 +192,34 @@ func SupabaseAuthMiddleware(requiredRole string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// Validate token with Supabase
 		client := GetSupabaseClient()
-		ctx := context.Background()
-		user, err := client.Auth.User(ctx, accessToken)
-		
+		user, err := client.Auth.WithToken(accessToken).GetUser()
+
 		if err != nil {
 			// Try to refresh the token
 			refreshToken, _ := c.Cookie("sb_refresh_token")
 			if refreshToken != "" {
-				newUser, err := client.Auth.RefreshUser(ctx, accessToken, refreshToken)
+				var newUser *types.TokenResponse
+				newUser, err = client.Auth.WithToken(accessToken).RefreshToken(refreshToken)
 				if err == nil {
 					// Update cookies with new tokens
-					c.SetCookie("sb_access_token", newUser.AccessToken, 3600, "/", "", false, true)
-					c.SetCookie("sb_refresh_token", newUser.RefreshToken, 86400*7, "/", "", false, true)
-					
-					user = &newUser.User
+					authCookie(c, "sb_access_token", newUser.AccessToken, 3600)
+					authCookie(c, "sb_refresh_token", newUser.RefreshToken, 86400*7)
+
+					accessToken = newUser.AccessToken
+					user = &types.UserResponse{User: newUser.User}
 				}
 			}
-			
+
 			if err != nil {
 				c.Redirect(http.StatusFound, "/login")
 				c.Abort()
 				return
 			}
 		}
-		
+
 		// Get role from JWT custom claims (injected by Auth Hook)
 		// The Auth Hook also checks if user is banned
 		role, err := extractRoleFromJWT(accessToken)
@@ -238,7 +240,7 @@ func SupabaseAuthMiddleware(requiredRole string) gin.HandlerFunc {
 		}
 
 		// Set user info in context
-		c.Set("user_id", user.ID)
+		c.Set("user_id", user.ID.String())
 		c.Set("user_role", role)
 		c.Set("user_email", user.Email)
 
@@ -259,8 +261,7 @@ func SupabaseRedirectIfAuthenticated() gin.HandlerFunc {
 
 		// Validate token with Supabase
 		client := GetSupabaseClient()
-		ctx := context.Background()
-		_, err = client.Auth.User(ctx, accessToken)
+		_, err = client.Auth.WithToken(accessToken).GetUser()
 
 		if err != nil {
 			// Invalid token, continue to login/register page
@@ -293,106 +294,34 @@ func ForgotPasswordPage(c *gin.Context) {
 
 // ForgotPassword handles password reset requests
 func ForgotPassword(c *gin.Context) {
-	email := c.PostForm("email")
-	log.Printf("Password reset requested for: %s", email)
-	
-	client := GetSupabaseClient()
-	ctx := context.Background()
-	
-	// Check if user exists using Supabase Management API
-	userExists, err := checkUserExistsSupabase(email)
-	log.Printf("User check for %s: exists=%t, err=%v", email, userExists, err)
-	
-	if err != nil {
-		log.Printf("Error checking user existence: %v", err)
-		// Continue with password reset attempt for security
-	} else if !userExists {
-		log.Printf("User %s does not exist, showing error", email)
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/forgot_password.html", gin.H{
-			"error": "No account found with this email address.",
-		})
+	redirectURL := strings.TrimRight(os.Getenv("BASE_URL"), "/") + "/auth/callback"
+	if !validBaseURL(os.Getenv("BASE_URL")) {
+		c.Status(http.StatusServiceUnavailable)
 		return
 	}
-	
-	log.Printf("User %s exists, proceeding with password reset", email)
-	
-	// Request password reset - use environment-aware redirect URL
-	redirectURL := getResetPasswordURL(c)
-	log.Printf("Sending password reset for %s to redirect URL: %s", email, redirectURL)
-	
-	err = client.Auth.ResetPasswordForEmail(ctx, email, redirectURL)
-	
-	if err != nil {
-		log.Printf("Password reset error for %s: %v", email, err)
-		renderPage(c, "templates/layouts/auth.html", "templates/auth/forgot_password.html", gin.H{
-			"error": "Failed to send reset email. Please check your email address and try again.",
-		})
+	if err := recoverSupabasePassword(c.Request.Context(), c.PostForm("email"), redirectURL); err != nil {
+		renderPage(c, "templates/layouts/auth.html", "templates/auth/forgot_password.html", gin.H{"error": "Failed to send reset email. Please try again."})
 		return
 	}
-
 	c.Redirect(http.StatusFound, "/forgot-password?reset_sent=true")
-}
-
-// checkUserExistsSupabase checks if a user exists using Node.js helper
-func checkUserExistsSupabase(email string) (bool, error) {
-	cmd := exec.Command("node", "check_user.js", email)
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	
-	result := strings.TrimSpace(string(output))
-	return result == "true", nil
-}
-
-// getResetPasswordURL returns the appropriate reset password URL
-func getResetPasswordURL(c *gin.Context) string {
-	// Get the host from the request
-	scheme := "http"
-	if c.Request.TLS != nil {
-		scheme = "https"
-	}
-	host := c.Request.Host
-	return fmt.Sprintf("%s://%s/auth/callback", scheme, host)
 }
 
 // ResetPasswordPage renders the reset password form (when user clicks link in email)
 func ResetPasswordPage(c *gin.Context) {
+	if _, err := c.Cookie("reset_access_token"); err != nil {
+		c.Redirect(http.StatusFound, "/forgot-password?error=session_expired")
+		return
+	}
+	nonce, err := c.Cookie("reset_csrf")
+	if err != nil {
+		c.Status(http.StatusForbidden)
+		return
+	}
 	renderPage(c, "templates/layouts/auth.html", "templates/auth/reset_password.html", gin.H{
 		"title": "Set New Password",
+		"csrf":  nonce,
 	})
 }
 
-// ResetPassword handles the password update
-func ResetPassword(c *gin.Context) {
-	accessToken := c.PostForm("access_token")
-	newPassword := c.PostForm("password")
-	confirmPassword := c.PostForm("confirm_password")
-	
-	if newPassword != confirmPassword {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Passwords do not match",
-		})
-		return
-	}
-	
-	client := GetSupabaseClient()
-	ctx := context.Background()
-	
-	// Update password using the access token from the reset link
-	_, err := client.Auth.UpdateUser(ctx, accessToken, map[string]interface{}{
-		"password": newPassword,
-	})
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to reset password",
-		})
-		return
-	}
-
-	// Password successfully updated
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-	})
-}
+// ResetPassword is the JSON-compatible entry point to the same cookie-scoped flow.
+func ResetPassword(c *gin.Context) { ResetPasswordCallback(c) }

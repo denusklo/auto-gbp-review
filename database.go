@@ -16,9 +16,13 @@ type Database struct {
 func InitDatabase() (*Database, error) {
 	var connStr string
 
-	// Check if using Supabase
+	// Explicit DATABASE_URL takes precedence for safe local development.
+	// The legacy Supabase fallback below uses the remote session pooler.
+	databaseURL := os.Getenv("DATABASE_URL")
 	supabaseURL := os.Getenv("SUPABASE_URL")
-	if supabaseURL != "" {
+	if databaseURL != "" {
+		connStr = databaseURL
+	} else if supabaseURL != "" {
 		projectID := extractProjectID(supabaseURL)
 		password := os.Getenv("SUPABASE_DB_PASSWORD")
 		if password == "" {
