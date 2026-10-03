@@ -1,6 +1,7 @@
 package main
 
 import (
+	"auto-gbp-review/internal/auth"
 	"auto-gbp-review/utils"
 	"bytes"
 	"database/sql"
@@ -1085,8 +1086,8 @@ func (h *Handlers) getAuthUserByEmail(email string) (string, error) {
 
 // createSupabaseUserWithRole creates a new user via Supabase Admin API and sets their role
 func (h *Handlers) createSupabaseUserWithRole(email, password, role string) (string, error) {
-	supabaseURL := GetSupabaseURL()
-	serviceRoleKey := GetSupabaseServiceKey()
+	supabaseURL := auth.GetSupabaseURL()
+	serviceRoleKey := auth.GetSupabaseServiceKey()
 
 	log.Printf("Creating Supabase user for email: %s with role: %s", email, role)
 	log.Printf("Supabase URL: %s", supabaseURL)
@@ -1175,8 +1176,8 @@ func (h *Handlers) createSupabaseUserWithRole(email, password, role string) (str
 
 // createSupabaseUser creates a new user via Supabase Admin API
 func (h *Handlers) createSupabaseUser(email, password string) (string, error) {
-	supabaseURL := GetSupabaseURL()
-	serviceRoleKey := GetSupabaseServiceKey()
+	supabaseURL := auth.GetSupabaseURL()
+	serviceRoleKey := auth.GetSupabaseServiceKey()
 
 	log.Printf("Creating Supabase user for email: %s", email)
 	log.Printf("Supabase URL: %s", supabaseURL)

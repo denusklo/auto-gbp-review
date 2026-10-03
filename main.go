@@ -1,6 +1,7 @@
 package main
 
 import (
+	"auto-gbp-review/internal/auth"
 	"html/template"
 	"io"
 	"log"
@@ -44,8 +45,10 @@ func main() {
 		log.Println("No .env file found, using environment variables")
 	}
 
+	auth.SetRenderer(renderPage)
+
 	// Initialize Supabase client
-	if err := InitSupabase(); err != nil {
+	if err := auth.InitSupabase(); err != nil {
 		log.Fatal("Failed to initialize Supabase client:", err)
 	}
 
@@ -57,7 +60,8 @@ func main() {
 	defer db.Close()
 
 	// Initialize Gin router
-	router := gin.Default()
+	router := gin.New()
+	router.Use(auth.SafeRequestLogger(), gin.RecoveryWithWriter(io.Discard))
 
 	// Serve static files
 	router.Static("/static", "./static")
@@ -91,25 +95,26 @@ func InitRoutes(router *gin.Engine, db *Database) {
 	router.GET("/merchant", handlers.MerchantPage) // ?bn=businessname
 
 	// Auth routes (redirect if already logged in)
-	router.GET("/login", SupabaseRedirectIfAuthenticated(), handlers.LoginPage)
-	router.POST("/login", SupabaseLogin)
-	router.GET("/register", SupabaseRedirectIfAuthenticated(), handlers.RegisterPage)
-	router.POST("/register", SupabaseRegister)
-	router.POST("/logout", SupabaseLogout)
+	router.GET("/login", auth.SupabaseRedirectIfAuthenticated(), handlers.LoginPage)
+	router.POST("/login", auth.SupabaseLogin)
+	router.GET("/register", auth.SupabaseRedirectIfAuthenticated(), handlers.RegisterPage)
+	router.POST("/register", auth.SupabaseRegister)
+	router.POST("/logout", auth.SupabaseLogout)
 
 	// Supabase auth callback routes (server-side handling)
-	router.GET("/auth/callback", HandleSupabaseAuthCallback)
-	router.POST("/auth/reset-password", ResetPasswordCallback)
+	router.GET("/auth/callback", auth.HandleSupabaseAuthCallback)
+	router.POST("/auth/recovery-session", auth.RecoverySession)
+	router.POST("/auth/reset-password", auth.ResetPasswordCallback)
 
 	// Password reset routes (Supabase Auth only)
-	router.GET("/forgot-password", SupabaseRedirectIfAuthenticated(), ForgotPasswordPage)
-	router.POST("/forgot-password", ForgotPassword)
-	router.GET("/reset-password", ResetPasswordPage)
-	router.POST("/api/reset-password", ResetPassword)
+	router.GET("/forgot-password", auth.SupabaseRedirectIfAuthenticated(), auth.ForgotPasswordPage)
+	router.POST("/forgot-password", auth.ForgotPassword)
+	router.GET("/reset-password", auth.ResetPasswordPage)
+	router.POST("/api/reset-password", auth.ResetPassword)
 
 	// Admin routes (protected)
 	admin := router.Group("/admin")
-	admin.Use(SupabaseAuthMiddleware("admin"))
+	admin.Use(auth.SupabaseAuthMiddleware("admin"))
 	{
 		admin.GET("/", handlers.AdminDashboard)
 		admin.GET("/merchants", handlers.AdminMerchantsList)
@@ -123,7 +128,7 @@ func InitRoutes(router *gin.Engine, db *Database) {
 
 	// Merchant routes (protected)
 	merchant := router.Group("/dashboard")
-	merchant.Use(SupabaseAuthMiddleware("merchant"))
+	merchant.Use(auth.SupabaseAuthMiddleware("merchant"))
 	{
 		merchant.GET("/", handlers.MerchantDashboard)
 		merchant.GET("/profile", handlers.MerchantProfile)
@@ -146,7 +151,7 @@ func InitRoutes(router *gin.Engine, db *Database) {
 	{
 		// Admin-only API routes
 		adminAPI := api.Group("")
-		adminAPI.Use(SupabaseAuthMiddleware("admin"))
+		adminAPI.Use(auth.SupabaseAuthMiddleware("admin"))
 		{
 			adminAPI.POST("/merchants/:id/toggle-status", handlers.ToggleMerchantStatus)
 		}
@@ -161,7 +166,7 @@ func InitRoutes(router *gin.Engine, db *Database) {
 
 		// Review routes (protected)
 		reviewsAPI := api.Group("/reviews")
-		reviewsAPI.Use(SupabaseAuthMiddleware("merchant"))
+		reviewsAPI.Use(auth.SupabaseAuthMiddleware("merchant"))
 		{
 			reviewsAPI.POST("/add", handlers.AddReview)
 			reviewsAPI.DELETE("/:id", handlers.DeleteReview)
@@ -169,7 +174,7 @@ func InitRoutes(router *gin.Engine, db *Database) {
 
 		// Social media API routes (protected)
 		socialMedia := api.Group("/social-media")
-		socialMedia.Use(SupabaseAuthMiddleware("merchant"))
+		socialMedia.Use(auth.SupabaseAuthMiddleware("merchant"))
 		{
 			// OAuth routes
 			socialMedia.GET("/connect/:platform", socialMediaHandlers.ConnectPlatform)
@@ -189,7 +194,7 @@ func InitRoutes(router *gin.Engine, db *Database) {
 
 		// Admin social media routes
 		adminSocialMedia := api.Group("/admin/social-media")
-		adminSocialMedia.Use(SupabaseAuthMiddleware("admin"))
+		adminSocialMedia.Use(auth.SupabaseAuthMiddleware("admin"))
 		{
 			adminSocialMedia.GET("/connections", socialMediaHandlers.AdminConnectionsPage)
 		}
